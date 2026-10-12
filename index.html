@@ -120,15 +120,19 @@ const DEFAULTS = {
   offsets: { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
   prayers: {},
   zikr: { date: '', sel: 0, count: 0, rounds: 0, total: 0 },
+  v: 2,
   plan: [
-    { tag: "Ko'krak", title: "Ko'krak kuni", ex: [['Shtanga jim (bench press)', '4 × 8 · 60 kg', 4], ['Qiya skameykada gantel', '3 × 10 · 22 kg', 3], ['Brusda otjimaniya', '3 × 12', 3], ['Krossover', '3 × 12 · 15 kg', 3], ['Otjimaniya', '3 × maks', 3]] },
-    { tag: 'Orqa', title: 'Orqa kuni', ex: [['Turnikda tortilish', '4 × 8', 4], ['Shtanga tortish (row)', '4 × 10 · 50 kg', 4], ['Yuqori blok tortish', '3 × 12', 3], ['Gantel bilan tortish', '3 × 10', 3]] },
-    { tag: 'Oyoq', title: 'Oyoq kuni', ex: [['Prisedaniya', '4 × 8 · 70 kg', 4], ['Rumin tortishi', '3 × 10', 3], ['Vipad (lunges)', '3 × 12', 3], ["Boldir ko'tarish", '4 × 15', 4]] },
-    { tag: 'Yelka', title: 'Yelka kuni', ex: [["O'tirib gantel jim", '4 × 10', 4], ["Yon tomonga ko'tarish", '3 × 15', 3], ["Oldinga ko'tarish", '3 × 12', 3], ['Face pull', '3 × 15', 3]] },
-    { tag: "Qo'l", title: "Qo'l kuni", ex: [['Biceps shtanga', '4 × 10', 4], ["Bolg'a (hammer curl)", '3 × 12', 3], ['Fransuzcha jim', '3 × 10', 3], ['Triceps blok', '3 × 12', 3]] },
-    { tag: 'Kardio', title: 'Kardio + press', ex: [['Yugurish', '25 daqiqa', 1], ['Planka', '3 × 60 s', 3], ["Oyoq ko'tarish", '3 × 15', 3]] },
+    { tag: 'Dam', title: 'Dam olish', ex: [] },
+    { tag: "Ko'krak", title: "Ko'krak + biceps", ex: [['Shtanga jim (bench press)', '4 × 8', 4], ['Qiya skameykada gantel jim', '3 × 10', 3], ['Krossover', '3 × 12', 3], ['Biceps shtanga', '3 × 10', 3], ["Bolg'a (hammer curl)", '3 × 12', 3]] },
+    { tag: 'Dam', title: 'Dam olish', ex: [] },
+    { tag: 'Orqa', title: 'Orqa + triceps', ex: [['Turnikda tortilish', '4 × 8', 4], ['Shtanga tortish (row)', '4 × 10', 4], ['Yuqori blok tortish', '3 × 12', 3], ['Fransuzcha jim', '3 × 10', 3], ['Triceps blok', '3 × 12', 3]] },
+    { tag: 'Dam', title: 'Dam olish', ex: [] },
+    { tag: 'Oyoq', title: 'Oyoq + yelka', ex: [['Prisedaniya', '4 × 8', 4], ['Rumin tortishi', '3 × 10', 3], ['Vipad (lunges)', '3 × 12', 3], ["O'tirib gantel jim", '4 × 10', 4], ["Yon tomonga ko'tarish", '3 × 15', 3]] },
     { tag: 'Dam', title: 'Dam olish', ex: [] }
   ],
+  profile: { w: 80, h: 171, age: 25, goal: 'ushlash' },
+  foods: [{ id: 'f1', name: '2 ta tuxum', kcal: 155, p: 13 }, { id: 'f2', name: 'Tovuq grill 300 g', kcal: 570, p: 75 }, { id: 'f3', name: 'Tvorog', kcal: 145, p: 20 }, { id: 'f4', name: "Go'sht 200 g", kcal: 500, p: 52 }],
+  food: {},
   sportDone: {},
   expenses: [],
   notes: [],
@@ -143,11 +147,15 @@ function load() {
   const out = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), s);
   out.offsets = Object.assign({}, DEFAULTS.offsets, s.offsets);
   out.book = Object.assign({}, DEFAULTS.book, s.book);
+  out.profile = Object.assign({}, DEFAULTS.profile, s.profile);
+  // v2: haftalik rutina Se/Pa/Sh ga o'zgardi — eski saqlangan rejani almashtiradi
+  if (s.plan && (s.v || 1) < 2) { out.plan = JSON.parse(JSON.stringify(DEFAULTS.plan)); out.sportDone = {}; }
+  out.v = 2;
   return out;
 }
 let S = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-const U = { tab: 'today', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false };
+const U = { tab: 'today', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false, stab: 'gym', foodEdit: false };
 
 /* ---------- Namoz vaqtlari (astronomik hisob, Hanafiy asr) ---------- */
 function prayerTimes(date, lat, lng) {
@@ -252,6 +260,17 @@ function streak() {
   while (S.book.log[dkey(d)]) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
+const GOALS = { ozish: ['Ozish', -400, 2], ushlash: ['Vaznni ushlab turish', 0, 1.8], massa: ['Massa olish', 300, 1.8] };
+// Kunlik me'yor: Mifflin-St Jeor (erkak) × 1.45 (haftada 3 mashg'ulot), maqsadga qarab tuzatiladi
+function targets() {
+  const p = S.profile, g = GOALS[p.goal] || GOALS.ushlash;
+  const tdee = (10 * p.w + 6.25 * p.h - 5 * p.age + 5) * 1.45;
+  return { kcal: Math.round((tdee + g[1]) / 10) * 10, prot: Math.round(p.w * g[2]) };
+}
+function foodStats() {
+  const list = S.food[today()] || [], t = targets();
+  return { list, t, kcal: list.reduce((a, x) => a + x.kcal, 0), prot: list.reduce((a, x) => a + x.p, 0) };
+}
 const pct = (a, b) => b > 0 ? Math.min(100, Math.round(a / b * 100)) : 0;
 
 /* ---------- Ikonkalar ---------- */
@@ -303,6 +322,12 @@ function vToday() {
       <div class="bar" style="margin-top:auto"><i style="width:${pct(z.total, S.zikrGoal)}%;background:var(--accent)"></i></div>
     </button>
   </div>
+  ${(f => `<button class="card col" data-a="goFood" style="gap:10px">
+    <div class="between row"><div class="lbl">Ovqat · bugun</div><div class="sm num">${f.kcal} / ${f.t.kcal} kkal</div></div>
+    <div class="bar"><i style="width:${pct(f.kcal, f.t.kcal)}%;background:#9A5A0C"></i></div>
+    <div class="between row"><div style="font-size:15px;font-weight:700">Oqsil</div><div class="num" style="font-size:15px;font-weight:800">${f.prot} / ${f.t.prot} g</div></div>
+    <div class="bar"><i style="width:${pct(f.prot, f.t.prot)}%;background:var(--accent)"></i></div>
+  </button>`)(foodStats())}
   <button class="card row" data-a="goBook" style="gap:14px">
     <div style="width:44px;height:56px;border-radius:6px;background:#2D3B35;flex-shrink:0"></div>
     <div class="col" style="flex:1;gap:6px;min-width:0">
@@ -380,6 +405,38 @@ function vZikr() {
 }
 
 function vSport() {
+  return `<div class="seg"><button class="${U.stab === 'gym' ? 'on' : ''}" data-a="stab" data-k="gym">Mashqlar</button><button class="${U.stab === 'food' ? 'on' : ''}" data-a="stab" data-k="food">Ovqatlanish</button></div>` + (U.stab === 'food' ? vFood() : vGym());
+}
+function vFood() {
+  const f = foodStats(), left = f.t.kcal - f.kcal, pl = f.t.prot - f.prot;
+  return `
+  <div class="col" style="gap:4px"><div class="eyebrow">Bugungi ovqatlanish</div><div class="h1">Kaloriya va oqsil</div></div>
+  <div class="col" style="background:var(--ink);color:#fff;border-radius:24px;padding:18px 20px;gap:10px">
+    <div class="between row" style="align-items:baseline"><div style="font-size:13px;font-weight:600;opacity:.8">Kaloriya</div><div class="num" style="font-size:13px;opacity:.85">me'yor ${f.t.kcal} kkal</div></div>
+    <div class="row" style="align-items:baseline;gap:8px"><div class="num" style="font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1">${f.kcal}</div><div style="font-size:14px;opacity:.8">${left >= 0 ? 'kkal · yana ' + left + ' qoldi' : 'kkal · ' + (-left) + ' oshdi'}</div></div>
+    <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(f.kcal, f.t.kcal)}%;background:#E9B45A;border-radius:4px"></div></div>
+    <div class="between row" style="align-items:baseline;margin-top:6px"><div style="font-size:13px;font-weight:600;opacity:.8">Oqsil</div><div class="num" style="font-size:13px;opacity:.85">me'yor ${f.t.prot} g</div></div>
+    <div class="row" style="align-items:baseline;gap:8px"><div class="num" style="font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1">${f.prot}</div><div style="font-size:14px;opacity:.8">${pl > 0 ? 'g · yana ' + pl + ' g kerak' : "g · me'yor bajarildi"}</div></div>
+    <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(f.prot, f.t.prot)}%;background:#7FD1B0;border-radius:4px"></div></div>
+  </div>
+  <div class="between row"><div class="lbl">Tez qo'shish</div><button class="plain" data-a="foodEditToggle" style="font-size:12px;font-weight:700;color:var(--accent);min-height:32px">${U.foodEdit ? 'Tayyor' : 'Tahrirlash'}</button></div>
+  <div class="col" style="gap:8px">
+    ${S.foods.map(x => `<button class="card between row" data-a="fQuick" data-id="${x.id}" style="border-radius:16px;padding:10px 14px;min-height:52px;gap:10px">
+      <span style="font-size:15px;font-weight:700;flex:1;min-width:0">${esc(x.name)}</span>
+      <span class="sm num" style="white-space:nowrap">${x.kcal} kkal · ${x.p} g</span>
+      <span style="color:${U.foodEdit ? 'var(--mute)' : 'var(--accent)'};display:flex">${U.foodEdit ? svg(I.fwd, { s: 20, w: 2 }) : svg(I.plus, { s: 22, w: 2.4 })}</span></button>`).join('')}
+    <button class="btn" data-a="fAdd">+ Boshqa taom</button>
+  </div>
+  <div class="lbl">Bugun yeyilgan</div>
+  <div class="card col" style="border-radius:22px;padding:4px 16px">
+    ${f.list.length ? f.list.map((x, i) => `<button class="plain between row" data-a="fEdit" data-id="${x.id}" style="gap:12px;padding:11px 0;width:100%;${i < f.list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+      <span class="col" style="flex:1;gap:1px;min-width:0"><span style="font-size:15px;font-weight:700">${esc(x.name)}</span><span class="sm num">${pad(new Date(x.ts).getHours())}:${pad(new Date(x.ts).getMinutes())} · oqsil ${x.p} g</span></span>
+      <span class="num" style="font-size:15px;font-weight:800">${x.kcal} kkal</span></button>`).join('')
+      : `<div class="empty">Bugun hali hech narsa yozilmagan.<br>Yuqoridagi taomlardan birini bosing.</div>`}
+  </div>
+  <div class="sm" style="text-align:center;line-height:1.5;padding:0 8px">Me'yor vazn, bo'y, yosh va maqsadga qarab hisoblanadi — Sozlamalarda (Bugun ekrani, ⚙) o'zgartiring. Taomlardagi raqamlar taxminiy.</div>`;
+}
+function vGym() {
   const st = sportStats(U.sportDay), day = st.day;
   return `
   <div class="between row" style="align-items:flex-end">
@@ -519,6 +576,16 @@ function stopRest() { clearInterval(restTimer); restTimer = null; U.rest = null;
 
 const A = {
   go(d) { U.tab = d.tab; U.remEdit = false; render(); },
+  goFood() { U.tab = 'sport'; U.stab = 'food'; render(); },
+  stab(d) { U.stab = d.k; U.foodEdit = false; render(); },
+  foodEditToggle() { U.foodEdit = !U.foodEdit; render(); },
+  fQuick(d) {
+    const x = S.foods.find(e => e.id === d.id); if (!x) return;
+    if (U.foodEdit) return tplSheet(x);
+    const k = today(); S.food[k] = S.food[k] || []; S.food[k].push({ id: uid(), name: x.name, kcal: x.kcal, p: x.p, ts: Date.now() }); commit();
+  },
+  fAdd() { foodSheet(null); },
+  fEdit(d) { foodSheet(d.id); },
   goBook() { U.tab = 'qaydlar'; U.qtab = 'book'; render(); },
   closeSheet,
   sheetDelete() { const c = U.sheet; U.sheet = null; c.onDelete(); commit(); },
@@ -531,10 +598,14 @@ const A = {
         { k: 'city', label: 'Shahar', type: 'select', options: Object.keys(CITIES), value: S.city },
         { k: 'budget', label: "Oylik byudjet (so'm)", type: 'number', value: S.budget },
         { k: 'zikrGoal', label: 'Kunlik zikr maqsadi', type: 'number', value: S.zikrGoal },
+        { k: 'w', label: 'Vazn (kg)', type: 'number', value: S.profile.w }, { k: 'h', label: "Bo'y (sm)", type: 'number', value: S.profile.h },
+        { k: 'age', label: 'Yosh', type: 'number', value: S.profile.age },
+        { k: 'goal', label: 'Maqsad', type: 'select', options: Object.values(GOALS).map(g => g[0]), value: (GOALS[S.profile.goal] || GOALS.ushlash)[0] },
         ...PRAYERS.filter(p => !p.info).map(p => ({ k: 'o_' + p.k, label: p.name + ' vaqtini tuzatish (daqiqa, masalan 3 yoki -2)', type: 'number', value: S.offsets[p.k] }))
       ],
       onSave(v) {
         S.name = v.name.trim() || S.name; S.city = v.city;
+        S.profile = { w: num(v.w) || S.profile.w, h: num(v.h) || S.profile.h, age: num(v.age) || S.profile.age, goal: Object.keys(GOALS).find(k => GOALS[k][0] === v.goal) || 'ushlash' };
         S.budget = Math.max(0, num(v.budget)); S.zikrGoal = Math.max(1, num(v.zikrGoal));
         PRAYERS.filter(p => !p.info).forEach(p => S.offsets[p.k] = num(v['o_' + p.k]));
       }
@@ -607,6 +678,30 @@ const A = {
   bookRemind() { S.book.remind = !S.book.remind; commit(); }
 };
 
+const foodFields = x => [{ k: 'name', label: 'Taom', value: x ? x.name : '', ph: 'Masalan: Osh 1 porsiya' },
+  { k: 'kcal', label: 'Kaloriya (kkal)', type: 'number', value: x ? x.kcal : '', ph: '0' }, { k: 'p', label: 'Oqsil (g)', type: 'number', value: x ? x.p : '', ph: '0' }];
+function foodSheet(id) {
+  const k = today(), x = id ? (S.food[k] || []).find(e => e.id === id) : null;
+  openSheet({
+    title: x ? 'Taomni tahrirlash' : 'Boshqa taom', saveLabel: x ? 'Saqlash' : "Qo'shish",
+    fields: x ? foodFields(x) : [...foodFields(null), { k: 'tpl', label: "Tez qo'shish ro'yxatiga ham saqlansinmi?", type: 'select', options: ["Yo'q", 'Ha'], value: "Yo'q" }],
+    onSave(v) {
+      if (!v.name.trim()) return false;
+      const data = { name: v.name.trim(), kcal: Math.max(0, num(v.kcal)), p: Math.max(0, num(v.p)) };
+      if (x) return void Object.assign(x, data);
+      S.food[k] = S.food[k] || []; S.food[k].push(Object.assign({ id: uid(), ts: Date.now() }, data));
+      if (v.tpl === 'Ha') S.foods.push(Object.assign({ id: uid() }, data));
+    },
+    onDelete: x ? () => { S.food[k] = S.food[k].filter(e => e.id !== id); } : null
+  });
+}
+function tplSheet(x) {
+  openSheet({
+    title: 'Tayyor taomni tahrirlash', fields: foodFields(x),
+    onSave(v) { if (!v.name.trim()) return false; Object.assign(x, { name: v.name.trim(), kcal: Math.max(0, num(v.kcal)), p: Math.max(0, num(v.p)) }); },
+    onDelete: () => { S.foods = S.foods.filter(e => e.id !== x.id); }
+  });
+}
 function exSheet(i) {
   const day = S.plan[U.sportDay], e = i == null ? null : day.ex[i];
   openSheet({
