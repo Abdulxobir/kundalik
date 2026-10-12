@@ -107,11 +107,19 @@ const ZIKRS = [
   { short: 'Salovat', name: "Allohumma solli 'ala Muhammad", meaning: "Payg'ambarimizga salovot", target: 100 }
 ];
 const CATS = {
-  ovqat: { label: 'Oziq-ovqat', bg: '#DCEBE3', fg: '#0E5E46' },
-  transport: { label: 'Transport', bg: '#DDE5F0', fg: '#1F3A5F' },
-  kitob: { label: 'Kitob', bg: '#F6E7CF', fg: '#9A5A0C' },
-  sport: { label: 'Sport', bg: '#EEE3EA', fg: '#5B2E48' },
-  boshqa: { label: 'Boshqa', bg: '#E9EBE7', fg: '#3F4A44' }
+  taksi: { label: 'Taksi', ab: 'Tk', bg: '#DDE5F0', fg: '#1F3A5F' },
+  obed: { label: 'Obed', ab: 'Ob', bg: '#DCEBE3', fg: '#0E5E46' },
+  oila: { label: 'Oilaviy xarajat', ab: 'Oi', bg: '#EEE3EA', fg: '#5B2E48' },
+  pampers: { label: 'Pampers', ab: 'Pm', bg: '#F6E7CF', fg: '#9A5A0C' },
+  telefon: { label: 'Telefon', ab: 'Tl', bg: '#E1E6F5', fg: '#2F3F86' },
+  ustbosh: { label: 'Ust-bosh', ab: 'Ub', bg: '#F3E1DC', fg: '#8A3A22' },
+  mashina: { label: 'Mashina', ab: 'Ms', bg: '#E4E9E6', fg: '#2D3B35' },
+  cs: { label: 'Counter-Strike', ab: 'CS', bg: '#E6E0F2', fg: '#4B2F86' },
+  ovqat: { label: 'Oziq-ovqat', ab: 'Oz', bg: '#DCEBE3', fg: '#0E5E46' },
+  sport: { label: 'Sport', ab: 'Sp', bg: '#EEE3EA', fg: '#5B2E48' },
+  kitob: { label: 'Kitob', ab: 'Kt', bg: '#F6E7CF', fg: '#9A5A0C' },
+  transport: { label: 'Transport', ab: 'Tr', bg: '#DDE5F0', fg: '#1F3A5F', old: true },
+  boshqa: { label: 'Boshqa', ab: 'Bq', bg: '#E9EBE7', fg: '#3F4A44' }
 };
 const TAGS = { ISH: '#0E5E46', "G'OYA": '#9A5A0C', KITOB: '#1F3A5F', SHAXSIY: '#5B2E48' };
 
@@ -485,6 +493,8 @@ function vGym() {
 
 function vPul() {
   const n = new Date(), ms = monthSpent(), spent = sum(ms);
+  const used = Object.keys(CATS).filter(k => ms.some(x => x.cat === k));
+  if (U.cat !== 'all' && !used.includes(U.cat)) U.cat = 'all';
   const list = ms.filter(x => U.cat === 'all' || x.cat === U.cat).sort((a, b) => b.ts - a.ts);
   return `
   <div class="col" style="gap:4px"><div class="eyebrow">${MONTHS[n.getMonth()]} ${n.getFullYear()}</div><div class="h1">Xarajatlar</div></div>
@@ -494,13 +504,21 @@ function vPul() {
     <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(spent, S.budget)}%;background:#E9B45A;border-radius:4px"></div></div>
     <div class="between num" style="font-size:12px;opacity:.85"><div>Byudjet: ${money(S.budget)}</div><div>${S.budget - spent >= 0 ? 'Qoldi: ' + money(S.budget - spent) : 'Oshdi: ' + money(spent - S.budget)}</div></div>
   </div>
-  <div class="chips">${['all', ...Object.keys(CATS)].map(k => `<button class="chip${U.cat === k ? ' on' : ''}" data-a="cat" data-k="${k}">${k === 'all' ? 'Hammasi' : CATS[k].label}</button>`).join('')}</div>
+  <div class="lbl">Tez qo'shish · turkumni bosing</div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+    ${Object.keys(CATS).filter(k => !CATS[k].old).map(k => { const c = CATS[k], t = sum(ms.filter(x => x.cat === k)); return `<button class="card col" data-a="expQuick" data-k="${k}" style="border-radius:16px;padding:10px;gap:6px;min-height:92px;align-items:flex-start">
+      <span style="width:32px;height:32px;border-radius:10px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">${c.ab}</span>
+      <span style="font-size:13px;font-weight:700;line-height:1.2">${c.label}</span>
+      <span class="sm num" style="margin-top:auto">${t ? money(t) : '—'}</span></button>`; }).join('')}
+  </div>
+  <div class="lbl">Shu oydagi xarajatlar</div>
+  ${used.length > 1 ? `<div class="chips">${['all', ...used].map(k => `<button class="chip${U.cat === k ? ' on' : ''}" data-a="cat" data-k="${k}">${k === 'all' ? 'Hammasi' : CATS[k].label}</button>`).join('')}</div>` : ''}
   <div class="card col" style="border-radius:22px;padding:4px 16px;margin-bottom:70px">
     ${list.length ? list.map((x, i) => { const c = CATS[x.cat] || CATS.boshqa; return `<button class="plain row" data-a="expEdit" data-id="${x.id}" style="gap:12px;padding:11px 0;width:100%;${i < list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
-      <span style="width:38px;height:38px;border-radius:12px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0">${c.label.charAt(0)}</span>
+      <span style="width:38px;height:38px;border-radius:12px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0">${c.ab}</span>
       <span class="col" style="flex:1;gap:1px;min-width:0"><span style="font-size:15px;font-weight:700">${esc(x.title)}</span><span class="sm">${c.label} · ${whenText(x.ts)}</span></span>
       <span class="num" style="font-size:15px;font-weight:800">−${money(x.amount)}</span></button>`; }).join('')
-      : `<div class="empty">Bu oyda hali xarajat yo'q.<br>Pastdagi + tugmasi bilan qo'shing.</div>`}
+      : `<div class="empty">Bu oyda hali xarajat yo'q.<br>Yuqoridagi turkumlardan birini bosing.</div>`}
   </div>`;
 }
 
@@ -670,6 +688,7 @@ const A = {
 
   cat(d) { U.cat = d.k; render(); },
   expAdd() { expSheet(null); },
+  expQuick(d) { expSheet(null, d.k); },
   expEdit(d) { expSheet(d.id); },
 
   qtab(d) { U.qtab = d.k; render(); },
@@ -746,13 +765,13 @@ function exSheet(i) {
     onDelete: e ? () => { day.ex.splice(i, 1); delete S.sportDone[weekDate(U.sportDay)]; } : null
   });
 }
-function expSheet(id) {
-  const x = id ? S.expenses.find(e => e.id === id) : null, labels = Object.values(CATS).map(c => c.label);
+function expSheet(id, cat) {
+  const x = id ? S.expenses.find(e => e.id === id) : null, labels = Object.keys(CATS).filter(k => !CATS[k].old || (x && x.cat === k)).map(k => CATS[k].label);
   openSheet({
-    title: x ? 'Xarajatni tahrirlash' : 'Yangi xarajat', saveLabel: x ? 'Saqlash' : "Qo'shish",
+    title: x ? 'Xarajatni tahrirlash' : cat ? CATS[cat].label : 'Yangi xarajat', saveLabel: x ? 'Saqlash' : "Qo'shish",
     fields: [{ k: 'amount', label: "Summa (so'm)", type: 'number', value: x ? x.amount : '', ph: '0' },
-      { k: 'title', label: 'Nimaga', value: x ? x.title : '', ph: 'Masalan: Bozor' },
-      { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : (CATS[U.cat] || CATS.ovqat).label }],
+      { k: 'title', label: 'Izoh (ixtiyoriy)', value: x ? x.title : '', ph: cat ? CATS[cat].label : 'Masalan: Bozor' },
+      { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : (CATS[cat] || CATS[U.cat] || CATS.boshqa).label }],
     onSave(v) {
       const amount = num(v.amount); if (amount <= 0) return false;
       const cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa', title = v.title.trim() || CATS[cat].label;
