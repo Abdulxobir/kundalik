@@ -286,6 +286,60 @@ function streak() {
   while (S.book.log[dkey(d)]) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
+// Mahsulotlar bazasi — 100 g uchun: [nom, kkal, oqsil, uglevod, odatiy porsiya (g), qidiruv uchun boshqa nomlar]
+// Qiymatlar o'rtacha ma'lumotnoma raqamlari (USDA va MDH jadvallari asosida, yaxlitlangan)
+const FOODDB = [
+  ['Kartoshka (xom)', 77, 2, 17, 150, 'картошка картофель potato'], ['Kartoshka (qaynatilgan)', 86, 2, 20, 200, 'картошка варёная pyure'],
+  ['Kartoshka fri', 312, 3, 41, 100, 'фри free'], ['Kartoshka pyuresi', 88, 2, 13, 200, 'пюре'],
+  ['Piyoz', 40, 1, 9, 50, 'лук onion'], ['Sabzi', 41, 1, 10, 80, 'морковь морковка carrot'], ['Pomidor', 18, 1, 4, 120, 'помидор томат tomato'],
+  ['Bodring', 15, 1, 4, 120, 'огурец cucumber'], ['Karam', 25, 1, 6, 100, 'капуста cabbage'], ["Bulg'or qalampiri", 31, 1, 6, 100, 'перец qalampir'],
+  ['Baqlajon', 25, 1, 6, 100, 'баклажан'], ['Qovoq', 26, 1, 7, 150, 'тыква'], ['Sarimsoq', 149, 6, 33, 10, 'чеснок'],
+  ["Ko'kat (ukrop, kashnich)", 36, 3, 6, 20, 'зелень укроп кинза петрушка kokat'], ['Lavlagi', 43, 2, 10, 100, 'свёкла свекла'],
+  ['Brokkoli', 34, 3, 7, 100, 'брокколи'], ["Qo'ziqorin", 22, 3, 3, 100, 'грибы шампиньон'], ['Makkajo\'xori', 86, 3, 19, 100, 'кукуруза'],
+  ['Olma', 52, 0, 14, 180, 'яблоко apple'], ['Banan', 89, 1, 23, 120, 'банан banana'], ['Apelsin', 47, 1, 12, 150, 'апельсин'],
+  ['Mandarin', 53, 1, 13, 80, 'мандарин'], ['Uzum', 69, 1, 18, 150, 'виноград'], ['Tarvuz', 30, 1, 8, 300, 'арбуз'],
+  ['Qovun', 34, 1, 8, 300, 'дыня'], ['Anor', 83, 2, 19, 150, 'гранат'], ['Nok', 57, 0, 15, 170, 'груша'], ['Shaftoli', 39, 1, 10, 150, 'персик'],
+  ["O'rik", 48, 1, 11, 40, 'абрикос orik'], ['Xurmo', 70, 1, 19, 150, 'хурма persimmon'], ['Finik', 282, 3, 75, 30, 'финик datlar'],
+  ['Mayiz', 299, 3, 79, 30, 'изюм'], ['Qulupnay', 32, 1, 8, 150, 'клубника'], ['Limon', 29, 1, 9, 20, 'лимон'], ['Kivi', 61, 1, 15, 75, 'киви'],
+  ['Guruch (xom)', 360, 7, 80, 80, 'рис сырой'], ['Guruch (pishgan)', 130, 3, 28, 200, 'рис варёный'],
+  ['Grechka (xom)', 343, 13, 72, 70, 'гречка сырая'], ['Grechka (pishgan)', 110, 4, 21, 200, 'гречка варёная'],
+  ["Suli yormasi (xom)", 379, 13, 68, 50, 'овсянка геркулес овёс oats suli'], ["Suli bo'tqasi (suvda)", 71, 3, 12, 250, 'овсянка каша'],
+  ['Makaron (xom)', 371, 13, 75, 80, 'макароны паста'], ['Makaron (pishgan)', 158, 6, 31, 200, 'макароны варёные'],
+  ['Non', 265, 8, 52, 100, 'хлеб лепёшка лепешка obi non'], ['Qora non', 259, 9, 48, 50, 'чёрный хлеб ржаной'], ['Lavash', 275, 9, 56, 60, 'лаваш'],
+  ['Mosh (pishgan)', 105, 7, 19, 150, 'маш mung'], ["No'xat (pishgan)", 164, 9, 27, 150, 'нут горох noxat'], ['Loviya (pishgan)', 127, 9, 23, 150, 'фасоль'],
+  ['Yasmiq (pishgan)', 116, 9, 20, 150, 'чечевица'], ['Un', 364, 10, 76, 50, 'мука'],
+  ["Tovuq ko'kragi (pishgan)", 165, 31, 0, 150, 'куриная грудка филе chicken tovuq'], ["Tovuq ko'kragi (xom)", 120, 23, 0, 150, 'куриная грудка сырая'],
+  ['Tovuq grill', 190, 25, 0, 300, 'курица гриль'], ['Tovuq soni (pishgan)', 210, 25, 0, 150, 'бедро курица окорочок'],
+  ["Mol go'shti (pishgan)", 250, 26, 0, 200, 'говядина варёная мясо gosht'], ["Mol go'shti (xom)", 190, 19, 0, 200, 'говядина сырая мясо gosht'],
+  ["Qo'y go'shti (pishgan)", 294, 25, 0, 150, 'баранина qoy gosht'], ['Qiyma (mol)', 250, 17, 0, 100, 'фарш'], ['Jigar (pishgan)', 175, 27, 5, 100, 'печень'],
+  ['Kolbasa (varyonka)', 257, 12, 2, 50, 'колбаса'], ['Sosiska', 260, 11, 2, 50, 'сосиски'], ['Baliq (pishgan)', 140, 22, 0, 150, 'рыба fish'],
+  ['Losos', 208, 20, 0, 150, 'лосось сёмга'], ['Tunets (konserva)', 116, 26, 0, 100, 'тунец'],
+  ['Tuxum', 143, 13, 1, 55, 'яйцо яйца egg'], ['Tvorog 5%', 121, 17, 3, 150, 'творог'], ['Tvorog 9%', 159, 17, 2, 150, 'творог'],
+  ['Sut 2.5%', 52, 3, 5, 250, 'молоко milk'], ['Kefir 2.5%', 52, 3, 4, 250, 'кефир'], ['Qatiq', 60, 3, 4, 200, 'катык простокваша'],
+  ['Yogurt (tabiiy)', 61, 4, 5, 150, 'йогурт'], ['Smetana 20%', 206, 3, 3, 30, 'сметана'], ['Pishloq (qattiq)', 360, 25, 0, 30, 'сыр'],
+  ["Sariyog'", 717, 1, 0, 10, 'масло сливочное'], ["O'simlik yog'i", 884, 0, 0, 10, 'масло растительное подсолнечное paxta yog'],
+  ['Protein (zardob)', 400, 80, 8, 30, 'протеин whey сывороточный kokteyl'], ['Geyner', 380, 20, 68, 100, 'гейнер gainer'],
+  ['Protein batonchik', 350, 30, 35, 60, 'протеиновый батончик bar'],
+  ["Yong'oq", 654, 15, 14, 30, 'грецкий орех yongoq'], ['Bodom', 579, 21, 22, 30, 'миндаль'], ["Yeryong'oq", 567, 26, 16, 30, 'арахис'],
+  ['Pista', 560, 20, 28, 30, 'фисташки'], ['Semechka', 584, 21, 20, 30, 'семечки кунгабокар'],
+  ['Asal', 304, 0, 82, 20, 'мёд мед'], ['Shakar', 387, 0, 100, 10, 'сахар'], ['Shokolad', 535, 8, 59, 25, 'шоколад'],
+  ['Pechenye', 450, 6, 68, 30, 'печенье'], ['Snickers', 488, 8, 60, 50, 'сникерс'],
+  ['Osh (palov)', 186, 6, 21, 350, 'плов палов osh'], ["Lag'mon", 120, 6, 15, 400, 'лагман lagmon'], ['Manti', 220, 10, 19, 200, 'манты'],
+  ['Somsa', 300, 10, 28, 120, 'самса'], ["Sho'rva", 50, 3, 4, 400, 'шурпа суп shorva'], ['Mastava', 70, 3, 9, 400, 'мастава'],
+  ['Chuchvara', 200, 9, 22, 250, 'чучвара пельмени'], ['Dimlama', 90, 5, 8, 400, 'димлама'], ['Shashlik', 240, 23, 0, 150, 'шашлык'],
+  ['Norin', 200, 12, 18, 250, 'нарын'], ['Qozon kabob', 250, 14, 12, 300, 'казан кабоб'],
+  ['Kola', 42, 0, 11, 330, 'кола cola pepsi gazli'], ['Sharbat', 45, 1, 10, 250, 'сок juice'], ['Choy / qahva (shakarsiz)', 1, 0, 0, 250, 'чай кофе']
+];
+const fnorm = t => String(t).toLowerCase().replace(/[ʻʼ‘’`´']/g, '').replace(/ё/g, 'е');
+const FOODIDX = FOODDB.map(f => fnorm(f[0] + ' ' + f[5]));
+function foodSearch(q) {
+  const toks = fnorm(q).split(/\s+/).filter(Boolean);
+  if (!toks.length) return [];
+  return FOODDB.map((f, i) => i).filter(i => toks.every(t => FOODIDX[i].includes(t)))
+    .sort((a, b) => (fnorm(FOODDB[b][0]).startsWith(toks[0]) - fnorm(FOODDB[a][0]).startsWith(toks[0])) || a - b)
+    .slice(0, 6);
+}
+const scale = (f, g) => ({ kcal: Math.round(f[1] * g / 100), p: Math.round(f[2] * g / 100), c: Math.round(f[3] * g / 100) });
 const GOALS = { relyef: ["Relyef (muskul + yog' kamaytirish)", -200, 2], ozish: ['Ozish', -400, 2], ushlash: ['Vaznni ushlab turish', 0, 1.8], massa: ['Massa olish', 300, 1.8] };
 // Kunlik me'yor: Mifflin-St Jeor (erkak) × 1.45 (haftada 3 mashg'ulot), maqsadga qarab tuzatiladi
 function targets() {
@@ -453,6 +507,7 @@ function vFood() {
     <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(f.kcal, f.t.kcal)}%;background:#E9B45A;border-radius:4px"></div></div>
     <div class="row" style="gap:16px;margin-top:4px;align-items:flex-start">${macroCol('Oqsil', f.prot, f.t.prot, '#7FD1B0')}${macroCol('Uglevod', f.carb, f.t.carb, '#9DB8E8')}</div>
   </div>
+  <button class="btn primary" data-a="prodAdd" style="flex:none">${svg(I.search, { s: 18, c: '#fff', w: 2.2 })} Mahsulot qo'shish (gramm bilan)</button>
   <div class="lbl">Bugun yeyilgan</div>
   <div class="card col" style="border-radius:22px;padding:4px 16px">
     ${f.list.length ? f.list.map((x, i) => `<button class="plain between row" data-a="fEdit" data-id="${x.id}" style="gap:12px;padding:11px 0;width:100%;${i < f.list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
@@ -465,7 +520,7 @@ function vFood() {
     ${S.foods.map(x => `<button class="card between row" data-a="fQuick" data-id="${x.id}" style="border-radius:16px;padding:10px 14px;min-height:56px;gap:10px">
       <span class="col" style="flex:1;min-width:0;gap:2px"><span style="font-size:15px;font-weight:700">${esc(x.name)}</span><span class="sm num">${macro(x)}</span></span>
       <span style="color:${U.foodEdit ? 'var(--mute)' : 'var(--accent)'};display:flex;flex-shrink:0">${U.foodEdit ? svg(I.fwd, { s: 20, w: 2 }) : svg(I.plus, { s: 22, w: 2.4 })}</span></button>`).join('')}
-    <button class="btn" data-a="fAdd">+ Boshqa taom</button>
+    <button class="btn" data-a="fAdd">+ Qo'lda kiritish</button>
   </div>
   <div class="sm" style="text-align:center;line-height:1.5;padding:0 8px">Me'yor vazn, bo'y, yosh va maqsadga qarab hisoblanadi — Sozlamalarda (Bugun ekrani, ⚙) o'zgartiring. Taomlardagi raqamlar taxminiy; gramm — tayyor (pishgan) holatdagi og'irlik.</div>`;
 }
@@ -581,6 +636,7 @@ function sheetHTML() {
     <div class="between row"><div style="font-size:19px;font-weight:800">${esc(c.title)}</div>
       <button type="button" class="round" data-a="closeSheet" aria-label="Yopish" style="font-size:22px;line-height:1">×</button></div>
     ${c.fields.map(field).join('')}
+    ${c.body || ''}
     ${c.hint ? `<div class="sm" style="line-height:1.5">${esc(c.hint)}</div>` : ''}
     <div class="row" style="gap:10px;margin-top:4px">${c.onDelete ? `<button type="button" class="btn danger" data-a="sheetDelete">O'chirish</button>` : ''}<button class="btn primary" type="submit">${esc(c.saveLabel || 'Saqlash')}</button></div>
   </form>`;
@@ -628,6 +684,31 @@ const A = {
     const k = today(); S.food[k] = S.food[k] || []; S.food[k].push({ id: uid(), name: x.name, g: x.g || 0, kcal: x.kcal, p: x.p, c: x.c || 0, ts: Date.now() }); commit();
   },
   fAdd() { foodSheet(null); },
+  prodAdd() {
+    U.prodTouched = false;
+    openSheet({
+      title: "Mahsulot qo'shish", fields: [], saveLabel: "Qo'shish",
+      body: `<label>Mahsulot<input id="prodQ" name="q" type="search" placeholder="Masalan: kartoshka, piyoz, protein" autocomplete="off"></label>
+        <input type="hidden" name="pid" id="prodPid" value="">
+        <div id="prodRes" class="col" style="gap:6px"></div>
+        <label>Og'irligi (gramm)<input id="prodG" name="g" type="text" inputmode="numeric" value="100" autocomplete="off"></label>
+        <div id="prodCalc" class="card" style="border-radius:16px;font-size:14px;color:var(--mute)">Mahsulot nomini yozing.</div>
+        <label>Tez qo'shish ro'yxatiga ham saqlansinmi?<select name="tpl"><option>Yo'q</option><option>Ha</option></select></label>`,
+      onSave(v) {
+        const f = FOODDB[v.pid === '' ? -1 : +v.pid], g = num(v.g);
+        if (!f || g <= 0) return false;
+        const data = Object.assign({ name: f[0], g }, scale(f, g)), k = today();
+        S.food[k] = S.food[k] || []; S.food[k].push(Object.assign({ id: uid(), ts: Date.now() }, data));
+        if (v.tpl === 'Ha') S.foods.push(Object.assign({ id: uid() }, data));
+      }
+    });
+    setTimeout(() => { const q = document.getElementById('prodQ'); if (q) q.focus(); }, 50);
+  },
+  prodPick(d) {
+    document.getElementById('prodPid').value = d.i;
+    if (!U.prodTouched) document.getElementById('prodG').value = FOODDB[+d.i][4];
+    prodUpdate();
+  },
   fEdit(d) { foodSheet(d.id); },
   goBook() { U.tab = 'qaydlar'; U.qtab = 'book'; render(); },
   closeSheet,
@@ -727,6 +808,29 @@ const foodFields = x => [{ k: 'name', label: 'Taom', value: x ? x.name : '', ph:
   { k: 'kcal', label: 'Kaloriya (kkal)', type: 'number', value: x ? x.kcal : '', ph: '0' },
   { k: 'p', label: 'Oqsil (g)', type: 'number', value: x ? x.p : '', ph: '0' }, { k: 'c', label: 'Uglevod (g)', type: 'number', value: x ? x.c || 0 : '', ph: '0' }];
 const foodData = v => ({ name: v.name.trim(), g: Math.max(0, num(v.g)), kcal: Math.max(0, num(v.kcal)), p: Math.max(0, num(v.p)), c: Math.max(0, num(v.c)) });
+// Mahsulot oynasini jonli yangilaydi (butun ekranni qayta chizmasdan, yozilgan matn yo'qolmasligi uchun)
+function prodUpdate(search) {
+  const pid = document.getElementById('prodPid'), res = document.getElementById('prodRes'), out = document.getElementById('prodCalc');
+  if (!pid) return;
+  if (search) {
+    const hits = foodSearch(document.getElementById('prodQ').value);
+    if (!hits.includes(+pid.value) || pid.value === '') {
+      pid.value = hits.length ? hits[0] : '';
+      if (hits.length && !U.prodTouched) document.getElementById('prodG').value = FOODDB[hits[0]][4];
+    }
+    res.innerHTML = hits.map(i => `<button type="button" class="card between row" data-a="prodPick" data-i="${i}" style="border-radius:14px;padding:10px 12px;gap:8px">
+      <span style="font-size:14px;font-weight:700;flex:1;min-width:0">${esc(FOODDB[i][0])}</span>
+      <span class="sm num" style="white-space:nowrap">100 g: ${FOODDB[i][1]} kkal</span></button>`).join('')
+      || (document.getElementById('prodQ').value.trim() ? `<div class="sm" style="line-height:1.5">Topilmadi. Boshqacha yozib ko'ring yoki "Qo'lda kiritish" dan foydalaning.</div>` : '');
+  }
+  res.querySelectorAll('[data-a=prodPick]').forEach(b => b.style.borderColor = b.dataset.i === pid.value ? 'var(--accent)' : '');
+  const f = FOODDB[pid.value === '' ? -1 : +pid.value], g = num(document.getElementById('prodG').value);
+  if (!f) { out.innerHTML = 'Mahsulot nomini yozing.'; out.style.color = 'var(--mute)'; return; }
+  const m = scale(f, g);
+  out.style.color = 'var(--ink)';
+  out.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--mute)">${esc(f[0])} · ${g} g</div>
+    <div class="num" style="font-size:17px;font-weight:800;margin-top:4px">${m.kcal} kkal · oqsil ${m.p} g · uglevod ${m.c} g</div>`;
+}
 function foodSheet(id) {
   const k = today(), x = id ? (S.food[k] || []).find(e => e.id === id) : null;
   openSheet({
@@ -807,6 +911,8 @@ document.addEventListener('submit', e => {
   U.sheet = null; commit();
 });
 document.addEventListener('input', e => {
+  if (e.target.id === 'prodQ') return prodUpdate(true);
+  if (e.target.id === 'prodG') { U.prodTouched = true; return prodUpdate(); }
   if (e.target.id !== 'q') return;
   U.q = e.target.value; document.getElementById('notesGrid').innerHTML = notesGrid();
 });
