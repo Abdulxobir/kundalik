@@ -155,6 +155,7 @@ const DEFAULTS = {
   steps: {}, stepSrc: {}, stepGoal: 10000, stepTopic: '',
   sportDone: {},
   expenses: [],
+  expPresets: [],
   notes: [],
   book: { title: '', author: '', page: 0, total: 0, goal: 20, time: '21:00', remind: true, log: {} },
   reminders: [{ id: 'r1', label: 'Vitamin ichish', time: '08:00' }, { id: 'r2', label: "Ota-onaga qo'ng'iroq", time: '18:30' }, { id: 'r3', label: 'Ertangi rejani yozish', time: '22:00' }],
@@ -191,7 +192,7 @@ function load() {
 }
 let S = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-const U = { tab: 'today', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false, stab: 'gym', foodEdit: false, ftab: 'day', rper: 'm', rmet: 'p', rsel: null };
+const U = { tab: 'today', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false, stab: 'gym', foodEdit: false, ftab: 'day', rper: 'm', rmet: 'p', rsel: null, ptab: 'main', rp: 'm', rpOff: 0, psel: null, presetEdit: false };
 
 /* ---------- Namoz vaqtlari (astronomik hisob, Hanafiy asr) ---------- */
 function prayerTimes(date, lat, lng) {
@@ -681,14 +682,26 @@ function vPul() {
   if (U.cat !== 'all' && !used.includes(U.cat)) U.cat = 'all';
   const list = ms.filter(x => U.cat === 'all' || x.cat === U.cat).sort((a, b) => b.ts - a.ts);
   return `
-  <div class="col" style="gap:4px"><div class="eyebrow">${MONTHS[n.getMonth()]} ${n.getFullYear()}</div><div class="h1">Xarajatlar</div></div>
+  <div class="between row" style="align-items:flex-end">
+    <div class="col" style="gap:4px"><div class="eyebrow">${MONTHS[n.getMonth()]} ${n.getFullYear()}</div><div class="h1">Xarajatlar</div></div>
+    <button class="chip" data-a="ptab" data-k="report" style="height:40px;border-radius:20px">Hisobot ${svg(I.fwd, { s: 14, w: 2.4 })}</button>
+  </div>
   <div class="col" style="background:var(--ink);color:#fff;border-radius:24px;padding:18px 20px;gap:12px">
     <div style="font-size:13px;font-weight:600;opacity:.8">Shu oy sarflandi</div>
     <div class="row" style="align-items:baseline;gap:8px"><div class="num" style="font-size:36px;font-weight:800;letter-spacing:-.03em">${money(spent)}</div><div style="font-size:14px;opacity:.8">so'm</div></div>
     <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(spent, S.budget)}%;background:#E9B45A;border-radius:4px"></div></div>
     <div class="between num" style="font-size:12px;opacity:.85"><div>Byudjet: ${money(S.budget)}</div><div>${S.budget - spent >= 0 ? 'Qoldi: ' + money(S.budget - spent) : 'Oshdi: ' + money(spent - S.budget)}</div></div>
   </div>
-  <div class="lbl">Tez qo'shish · turkumni bosing</div>
+  <div class="between row"><div class="lbl">Bir bosishda yozish</div>${S.expPresets.length ? `<button class="plain" data-a="presetEditToggle" style="font-size:12px;font-weight:700;color:var(--accent);min-height:32px">${U.presetEdit ? 'Tayyor' : 'Tahrirlash'}</button>` : ''}</div>
+  ${S.expPresets.length ? '' : `<div class="sm" style="line-height:1.5;margin-top:-6px">Har kuni takrorlanadigan xarajatlaringizni (masalan, "Taksi — 15 000") tugma qilib qo'ying: keyin bitta bosish bilan yoziladi.</div>`}
+  <div class="grid2" style="gap:8px">
+    ${S.expPresets.map(x => { const c = CATS[x.cat] || CATS.boshqa; return `<button class="card row" data-a="presetTap" data-id="${x.id}" style="border-radius:16px;padding:10px 12px;gap:10px;min-height:62px">
+      <span style="width:32px;height:32px;border-radius:10px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${c.ab}</span>
+      <span class="col" style="flex:1;min-width:0;gap:1px"><span style="font-size:14px;font-weight:700;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word">${esc(x.title)}</span><span class="sm num">${money(x.amount)}</span></span>
+      <span style="color:${U.presetEdit ? 'var(--mute)' : 'var(--accent)'};display:flex;flex-shrink:0">${U.presetEdit ? svg(I.fwd, { s: 18, w: 2 }) : svg(I.plus, { s: 20, w: 2.4 })}</span></button>`; }).join('')}
+    <button class="card row" data-a="presetAdd" style="border-radius:16px;padding:10px 12px;gap:8px;min-height:62px;border-style:dashed;color:var(--accent);justify-content:center;font-size:14px;font-weight:700">${svg(I.plus, { s: 18, w: 2.4 })} Tugma qo'shish</button>
+  </div>
+  <div class="lbl">Turkum bo'yicha · summani o'zingiz yozasiz</div>
   <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
     ${Object.keys(CATS).filter(k => !CATS[k].old).map(k => { const c = CATS[k], t = sum(ms.filter(x => x.cat === k)); return `<button class="card col" data-a="expQuick" data-k="${k}" style="border-radius:16px;padding:10px;gap:6px;min-height:92px;align-items:flex-start">
       <span style="width:32px;height:32px;border-radius:10px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">${c.ab}</span>
@@ -706,6 +719,93 @@ function vPul() {
   </div>`;
 }
 
+/* ---------- Xarajat hisoboti ---------- */
+const RP = [['d', 'Kun'], ['w', 'Hafta'], ['m', 'Oy'], ['y', 'Yil']];
+function pulRange(p, off) {
+  const n = new Date(); let s, e;
+  if (p === 'd') { s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - off); e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 1); }
+  else if (p === 'w') { s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - (n.getDay() + 6) % 7 - 7 * off); e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7); }
+  else if (p === 'm') { s = new Date(n.getFullYear(), n.getMonth() - off, 1); e = new Date(n.getFullYear(), n.getMonth() - off + 1, 1); }
+  else { s = new Date(n.getFullYear() - off, 0, 1); e = new Date(n.getFullYear() - off + 1, 0, 1); }
+  return { p, s, e };
+}
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+function rangeLabel(r) {
+  const s = r.s, l = new Date(r.e.getTime() - 864e5);
+  if (r.p === 'd') return `${WEEKDAYS[s.getDay()]}, ${s.getDate()}-${MONTHS[s.getMonth()]}`;
+  if (r.p === 'w') return `${s.getDate()}-${MONTHS[s.getMonth()].slice(0, 3)} – ${l.getDate()}-${MONTHS[l.getMonth()].slice(0, 3)}`;
+  if (r.p === 'm') return `${cap(MONTHS[s.getMonth()])} ${s.getFullYear()}`;
+  return `${s.getFullYear()}-yil`;
+}
+const inRange = r => S.expenses.filter(x => x.ts >= r.s.getTime() && x.ts < r.e.getTime()).sort((a, b) => b.ts - a.ts);
+// Grafik ustunlari: hafta — 7 kun, oy — har kun, yil — 12 oy
+function buckets(r) {
+  const out = [];
+  if (r.p === 'y') for (let m = 0; m < 12; m++) out.push({ label: MONTHS[m].slice(0, 3), s: new Date(r.s.getFullYear(), m, 1), e: new Date(r.s.getFullYear(), m + 1, 1) });
+  else for (let d = new Date(r.s); d < r.e; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))
+    out.push({ label: r.p === 'w' ? DAYS[(d.getDay() + 6) % 7] : String(d.getDate()), full: `${d.getDate()}-${MONTHS[d.getMonth()].slice(0, 3)}`, s: d, e: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) });
+  out.forEach(b => b.t = sum(inRange(b)));
+  return out;
+}
+function vPulReport() {
+  const r = pulRange(U.rp, U.rpOff), items = inRange(r), total = sum(items), now = new Date();
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const days = Math.max(1, Math.round((Math.min(r.e, tomorrow) - r.s) / 864e5));
+  const prev = sum(inRange(pulRange(U.rp, U.rpOff + 1)));
+  const budget = U.rp === 'm' ? S.budget : U.rp === 'y' ? S.budget * 12 : 0;
+  const byCat = Object.keys(CATS).map(k => ({ k, t: sum(items.filter(x => x.cat === k)), n: items.filter(x => x.cat === k).length })).filter(x => x.t).sort((a, b) => b.t - a.t);
+  const word = { d: 'kun', w: 'hafta', m: 'oy', y: 'yil' }[U.rp];
+  const bs = U.rp === 'd' ? [] : buckets(r), bmax = Math.max(1, ...bs.map(b => b.t)) * 1.1;
+  if (U.psel == null || U.psel >= bs.length) U.psel = null;
+  const sb = U.psel != null ? bs[U.psel] : null;
+  const showAll = U.rp === 'd' || U.rp === 'w', list = showAll ? items : items.slice().sort((a, b) => b.amount - a.amount).slice(0, 10);
+  return `
+  <div class="between row" style="align-items:flex-end">
+    <div class="col" style="gap:4px"><div class="eyebrow">Xarajatlar</div><div class="h1">Hisobot</div></div>
+    <button class="chip" data-a="ptab" data-k="main" style="height:40px;border-radius:20px">${svg(I.back, { s: 14, w: 2.4 })} Orqaga</button>
+  </div>
+  <div class="seg" style="grid-template-columns:repeat(4,minmax(0,1fr))">${RP.map(([k, l]) => `<button class="${U.rp === k ? 'on' : ''}" data-a="rp" data-k="${k}">${l}</button>`).join('')}</div>
+  <div class="between row">
+    <button class="round" data-a="rpNav" data-k="1" aria-label="Oldingi ${word}">${svg(I.back, { s: 18, w: 2.2 })}</button>
+    <div style="font-size:16px;font-weight:800;text-align:center">${rangeLabel(r)}</div>
+    <button class="round" data-a="rpNav" data-k="-1" aria-label="Keyingi ${word}" ${U.rpOff ? '' : 'disabled style="opacity:.35"'}>${svg(I.fwd, { s: 18, w: 2.2 })}</button>
+  </div>
+  <div class="col" style="background:var(--ink);color:#fff;border-radius:24px;padding:18px 20px;gap:10px">
+    <div style="font-size:13px;font-weight:600;opacity:.8">Jami sarflandi · ${items.length} ta xarajat</div>
+    <div class="row" style="align-items:baseline;gap:8px"><div class="num" style="font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1">${money(total)}</div><div style="font-size:14px;opacity:.8">so'm</div></div>
+    ${budget ? `<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(total, budget)}%;background:#E9B45A;border-radius:4px"></div></div>
+    <div class="between num" style="font-size:12px;opacity:.85"><div>Byudjet: ${money(budget)}</div><div>${budget - total >= 0 ? 'Qoldi: ' + money(budget - total) : 'Oshdi: ' + money(total - budget)}</div></div>` : ''}
+    <div class="between num" style="font-size:13px;opacity:.9;gap:12px">${U.rp !== 'd' ? `<span>Kuniga o'rtacha: <b>${money(total / days)}</b></span>` : '<span></span>'}<span>O'tgan ${word}: ${money(prev)}</span></div>
+  </div>
+  ${items.length ? `
+  ${bs.length ? `<div class="card col" style="border-radius:22px;gap:10px">
+    <div class="col" style="gap:2px"><div class="num" style="font-size:15px;font-weight:800">${sb ? (sb.full || cap(MONTHS[sb.s.getMonth()])) + ': ' + money(sb.t) + " so'm" : "Ustunni bosing — o'sha kun/oy summasi"}</div>
+      <div class="sm">${U.rp === 'y' ? 'Har bir ustun — bir oy' : 'Har bir ustun — bir kun'}</div></div>
+    <div style="height:140px;display:flex;align-items:flex-end;gap:2px">
+      ${bs.map((b, i) => `<button class="plain" data-a="psel" data-i="${i}" aria-label="${b.full || MONTHS[b.s.getMonth()]}: ${money(b.t)} so'm" title="${b.full || MONTHS[b.s.getMonth()]}: ${money(b.t)} so'm" style="flex:1;min-width:0;height:100%;display:flex;align-items:flex-end">
+        <span style="display:block;width:100%;height:${b.t ? Math.max(1.5, b.t / bmax * 100).toFixed(1) : 0}%;background:${U.psel === i ? '#0A2F24' : 'var(--accent)'};border-radius:${bs.length > 14 ? 2 : 4}px ${bs.length > 14 ? 2 : 4}px 0 0;${b.t ? '' : 'border-bottom:2px solid var(--line)'}"></span></button>`).join('')}
+    </div>
+    <div class="between sm num" style="margin-top:-4px">${bs.length <= 12 ? bs.map(b => `<span style="flex:1;text-align:center">${b.label}</span>`).join('') : `<span>${bs[0].label}</span><span>${bs[Math.floor(bs.length / 2)].label}</span><span>${bs[bs.length - 1].label}</span>`}</div>
+  </div>` : ''}
+  <div class="lbl">Turkumlar bo'yicha</div>
+  <div class="card col" style="border-radius:22px;padding:4px 16px">
+    ${byCat.map((x, i) => { const c = CATS[x.k]; return `<div class="col" style="gap:6px;padding:10px 0;${i < byCat.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+      <div class="between row" style="gap:8px"><span class="row" style="gap:8px;min-width:0"><span style="width:26px;height:26px;border-radius:8px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">${c.ab}</span>
+        <span style="font-size:14px;font-weight:700">${c.label}</span><span class="sm">${x.n} ta</span></span>
+        <span class="num" style="font-size:14px;font-weight:800;white-space:nowrap">${money(x.t)} <span class="sm">· ${Math.round(x.t / total * 100)}%</span></span></div>
+      <div class="bar"><i style="width:${(x.t / byCat[0].t * 100).toFixed(1)}%;background:var(--ink)"></i></div></div>`; }).join('')}
+  </div>
+  <div class="lbl">${showAll ? 'Xarajatlar' : 'Eng katta 10 ta xarajat'}</div>
+  <div class="card col" style="border-radius:22px;padding:4px 16px">
+    ${list.map((x, i) => { const c = CATS[x.cat] || CATS.boshqa, d = new Date(x.ts); return `<button class="plain row" data-a="expEdit" data-id="${x.id}" style="gap:12px;padding:10px 0;width:100%;${i < list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+      <span class="col" style="flex:1;gap:1px;min-width:0"><span style="font-size:15px;font-weight:700">${esc(x.title)}</span><span class="sm num">${c.label} · ${d.getDate()}-${MONTHS[d.getMonth()].slice(0, 3)} ${pad(d.getHours())}:${pad(d.getMinutes())}</span></span>
+      <span class="num" style="font-size:15px;font-weight:800">−${money(x.amount)}</span></button>`; }).join('')}
+  </div>` : `<div class="card empty">Bu davrda xarajat yozilmagan.</div>`}
+  <div class="col" style="gap:8px">
+    <button class="btn primary" data-a="xlsx" data-k="period" style="flex:none;${items.length ? '' : 'opacity:.5'}" ${items.length ? '' : 'disabled'}>Excel'ga yuklash — ${rangeLabel(r)}</button>
+    <button class="btn" data-a="xlsx" data-k="all" ${S.expenses.length ? '' : 'disabled style="opacity:.5"'}>Excel'ga yuklash — barcha xarajatlar</button>
+  </div>`;
+}
 function notesGrid() {
   const q = U.q.trim().toLowerCase();
   const list = S.notes.filter(n => !q || (n.title + ' ' + n.body + ' ' + n.tag).toLowerCase().includes(q)).sort((a, b) => b.ts - a.ts);
@@ -756,7 +856,7 @@ function vQaydlar() {
 /* ---------- Pastki oyna (forma) ---------- */
 function sheetHTML() {
   const c = U.sheet; if (!c) return '';
-  const field = f => `<label>${esc(f.label)}${f.type === 'select'
+  const field = f => f.html != null ? f.html : `<label>${esc(f.label)}${f.type === 'select'
     ? `<select name="${f.k}">${f.options.map(o => `<option${o === f.value ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`
     : f.type === 'textarea' ? `<textarea name="${f.k}" placeholder="${esc(f.ph || '')}">${esc(f.value)}</textarea>`
     : `<input name="${f.k}" type="${f.type === 'number' ? 'text' : f.type || 'text'}" ${f.type === 'number' ? 'inputmode="numeric" pattern="-?[0-9 ]*"' : ''} value="${esc(f.value)}" placeholder="${esc(f.ph || '')}" autocomplete="off">`}</label>`;
@@ -773,7 +873,7 @@ function sheetHTML() {
 const num = v => { const n = parseInt(String(v).replace(/[^\d-]/g, ''), 10); return isNaN(n) ? 0 : n; };
 
 /* ---------- Render ---------- */
-const VIEWS = { today: vToday, namoz: vNamoz, zikr: vZikr, sport: vSport, pul: vPul, qaydlar: vQaydlar };
+const VIEWS = { today: vToday, namoz: vNamoz, zikr: vZikr, sport: vSport, pul: () => U.ptab === 'report' ? vPulReport() : vPul(), qaydlar: vQaydlar };
 const NAV = [['today', 'Bugun', I.sun], ['namoz', 'Ibodat', I.moon], ['sport', 'Sport', I.gym], ['pul', 'Pul', I.card], ['qaydlar', 'Qaydlar', I.note]];
 let lastTab = null;
 function render() {
@@ -781,7 +881,7 @@ function render() {
   const top = sc && lastTab === U.tab ? sc.scrollTop : 0;
   const navTab = U.tab === 'zikr' ? 'namoz' : U.tab;
   app.innerHTML = `<div class="scroll">${VIEWS[U.tab]()}</div>
-    ${U.tab === 'pul' ? `<button class="fab" data-a="expAdd" aria-label="Xarajat qo'shish">${svg(I.plus, { s: 26, c: '#fff', w: 2.4 })}</button>` : ''}
+    ${U.tab === 'pul' && U.ptab !== 'report' ? `<button class="fab" data-a="expAdd" aria-label="Xarajat qo'shish">${svg(I.plus, { s: 26, c: '#fff', w: 2.4 })}</button>` : ''}
     <nav aria-label="Asosiy menyu">${NAV.map(n => `<button class="${navTab === n[0] ? 'on' : ''}" data-a="go" data-tab="${n[0]}">${svg(n[2])}${n[1]}</button>`).join('')}</nav>
     ${toastHTML()}
     ${sheetHTML()}`;
@@ -963,6 +1063,22 @@ const A = {
 
   cat(d) { U.cat = d.k; render(); },
   expAdd() { expSheet(null); },
+  ptab(d) { U.ptab = d.k; U.presetEdit = false; render(); },
+  rp(d) { U.rp = d.k; U.rpOff = 0; U.psel = null; render(); },
+  rpNav(d) { U.rpOff = Math.max(0, U.rpOff + +d.k); U.psel = null; render(); },
+  psel(d) { U.psel = +d.i; render(); },
+  presetEditToggle() { U.presetEdit = !U.presetEdit; render(); },
+  presetAdd() { presetSheet(null); },
+  presetTap(d) {
+    const x = S.expPresets.find(e => e.id === d.id); if (!x) return;
+    if (U.presetEdit) return presetSheet(x);
+    const e = { id: uid(), amount: x.amount, title: x.title, cat: x.cat, ts: Date.now() };
+    S.expenses.push(e);
+    toast(`${x.title} — ${money(x.amount)} so'm yozildi`, () => { S.expenses = S.expenses.filter(y => y.id !== e.id); });
+    commit();
+  },
+  amtPick(d) { const f = document.querySelector('.sheet [name=amount]'); if (f) f.value = money(+d.v); },
+  async xlsx(d) { await exportXLSX(d.k === 'all' ? null : pulRange(U.rp, U.rpOff)); },
   expQuick(d) { expSheet(null, d.k); },
   expEdit(d) { expSheet(d.id); },
 
@@ -1105,19 +1221,79 @@ function exSheet(i) {
   });
 }
 function expSheet(id, cat) {
-  const x = id ? S.expenses.find(e => e.id === id) : null, labels = Object.keys(CATS).filter(k => !CATS[k].old || (x && x.cat === k)).map(k => CATS[k].label);
+  const recent = cat ? [...new Set(S.expenses.filter(e => e.cat === cat).sort((a, b) => b.ts - a.ts).map(e => e.amount))].slice(0, 4) : [];
+  const x = id ? S.expenses.find(e => e.id === id) : null, chips = (!x && recent.length ? [{ html: `<div class="col" style="gap:6px;margin-top:-4px"><span class="sm" style="font-weight:600">Oldingi summalar — bosing:</span><div class="chips">${recent.map(a => `<button type="button" class="chip" data-a="amtPick" data-v="${a}">${money(a)}</button>`).join('')}</div></div>` }] : []), labels = Object.keys(CATS).filter(k => !CATS[k].old || (x && x.cat === k)).map(k => CATS[k].label);
   openSheet({
     title: x ? 'Xarajatni tahrirlash' : cat ? CATS[cat].label : 'Yangi xarajat', saveLabel: x ? 'Saqlash' : "Qo'shish",
-    fields: [{ k: 'amount', label: "Summa (so'm)", type: 'number', value: x ? x.amount : '', ph: '0' },
+    fields: [{ k: 'amount', label: "Summa (so'm)", type: 'number', value: x ? x.amount : '', ph: '0' }, ...chips,
       { k: 'title', label: 'Izoh (ixtiyoriy)', value: x ? x.title : '', ph: cat ? CATS[cat].label : 'Masalan: Bozor' },
-      { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : (CATS[cat] || CATS[U.cat] || CATS.boshqa).label }],
+      { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : (CATS[cat] || CATS[U.cat] || CATS.boshqa).label },
+      ...(x ? [] : [{ k: 'pre', label: 'Bir bosishda yozish tugmasi qilib saqlansinmi?', type: 'select', options: ["Yo'q", 'Ha'], value: "Yo'q" }])],
     onSave(v) {
       const amount = num(v.amount); if (amount <= 0) return false;
       const cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa', title = v.title.trim() || CATS[cat].label;
       if (x) Object.assign(x, { amount, title, cat }); else S.expenses.push({ id: uid(), amount, title, cat, ts: Date.now() });
+      if (!x && v.pre === 'Ha') S.expPresets.push({ id: uid(), amount, title, cat });
     },
     onDelete: x ? () => { S.expenses = S.expenses.filter(e => e.id !== id); } : null
   });
+}
+function presetSheet(x) {
+  const labels = Object.keys(CATS).filter(k => !CATS[k].old).map(k => CATS[k].label);
+  openSheet({
+    title: x ? 'Tugmani tahrirlash' : 'Bir bosishda yozish tugmasi', saveLabel: x ? 'Saqlash' : "Qo'shish",
+    hint: x ? '' : "Masalan: Taksi — 15 000. Keyin shu tugmani bossangiz, xarajat darhol yoziladi.",
+    fields: [{ k: 'title', label: 'Nomi', value: x ? x.title : '', ph: 'Masalan: Taksi ishga' },
+      { k: 'amount', label: "Summa (so'm)", type: 'number', value: x ? x.amount : '', ph: '0' },
+      { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : CATS.taksi.label }],
+    onSave(v) {
+      const amount = num(v.amount); if (amount <= 0) return false;
+      const cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa', data = { amount, cat, title: v.title.trim() || CATS[cat].label };
+      if (x) Object.assign(x, data); else S.expPresets.push(Object.assign({ id: uid() }, data));
+    },
+    onDelete: x ? () => { S.expPresets = S.expPresets.filter(e => e.id !== x.id); } : null
+  });
+}
+/* ---------- Excel (.xlsx) eksporti — SheetJS kutubxonasi kerak bo'lganda yuklanadi ---------- */
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((ok, fail) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = () => ok(window.XLSX); sc.onerror = fail; document.head.appendChild(sc);
+  });
+}
+async function exportXLSX(r) {
+  let X;
+  try { X = await loadXLSX(); } catch (e) { return toast("Excel uchun internet kerak"); }
+  const items = (r ? inRange(r) : S.expenses.slice().sort((a, b) => b.ts - a.ts));
+  if (!items.length) return toast("Xarajat yo'q");
+  const total = sum(items), wb = X.utils.book_new();
+  const money0 = (ws, col, from, to) => { for (let i = from; i <= to; i++) { const c = ws[X.utils.encode_cell({ r: i, c: col })]; if (c) c.z = '#,##0'; } };
+  // 1. Barcha xarajatlar
+  const rows = [['Sana', 'Vaqt', 'Turkum', 'Izoh', "Summa (so'm)"], ...items.map(x => { const d = new Date(x.ts); return [new Date(d.getFullYear(), d.getMonth(), d.getDate()), pad(d.getHours()) + ':' + pad(d.getMinutes()), (CATS[x.cat] || CATS.boshqa).label, x.title, x.amount]; }), ['', '', '', 'Jami', total]];
+  const ws1 = X.utils.aoa_to_sheet(rows, { cellDates: true, dateNF: 'dd"."mm"."yyyy' });
+  ws1['!cols'] = [{ wch: 12 }, { wch: 7 }, { wch: 18 }, { wch: 28 }, { wch: 14 }]; money0(ws1, 4, 1, rows.length - 1);
+  X.utils.book_append_sheet(wb, ws1, 'Xarajatlar');
+  // 2. Turkumlar bo'yicha
+  const cats = Object.keys(CATS).map(k => [CATS[k].label, items.filter(x => x.cat === k).length, sum(items.filter(x => x.cat === k))]).filter(c => c[2]).sort((a, b) => b[2] - a[2]);
+  const rows2 = [['Turkum', 'Soni', "Summa (so'm)", 'Ulushi'], ...cats.map(c => [c[0], c[1], c[2], c[2] / total]), ['Jami', items.length, total, 1]];
+  const ws2 = X.utils.aoa_to_sheet(rows2); ws2['!cols'] = [{ wch: 18 }, { wch: 7 }, { wch: 14 }, { wch: 9 }]; money0(ws2, 2, 1, rows2.length - 1);
+  for (let i = 1; i < rows2.length; i++) { const c = ws2[X.utils.encode_cell({ r: i, c: 3 })]; if (c) c.z = '0%'; }
+  X.utils.book_append_sheet(wb, ws2, 'Turkumlar');
+  // 3. Kunlar bo'yicha jami
+  const byDay = {}; items.forEach(x => { const k = dkey(new Date(x.ts)); byDay[k] = (byDay[k] || 0) + x.amount; });
+  const rows3 = [['Sana', "Summa (so'm)"], ...Object.keys(byDay).sort().map(k => [new Date(k + 'T00:00'), byDay[k]])];
+  const ws3 = X.utils.aoa_to_sheet(rows3, { cellDates: true, dateNF: 'dd"."mm"."yyyy' }); ws3['!cols'] = [{ wch: 12 }, { wch: 14 }]; money0(ws3, 1, 1, rows3.length - 1);
+  X.utils.book_append_sheet(wb, ws3, 'Kunlar');
+  const name = 'kundalik-xarajatlar-' + (r ? dkey(r.s).slice(0, { y: 4, m: 7 }[r.p] || 10) + (r.p === 'w' ? '-hafta' : '') : 'hammasi') + '.xlsx';
+  const file = new File([X.write(wb, { bookType: 'xlsx', type: 'array' })], name, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  // Telefonda — ulashish oynasi (Excel, Telegram, Fayllar), kompyuterda — yuklab olish
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: name }); } catch (e) {} return; }
+  const url = URL.createObjectURL(file), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast('Excel fayl yuklab olindi');
 }
 function noteSheet(id) {
   const n = id ? S.notes.find(e => e.id === id) : null;
