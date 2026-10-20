@@ -262,9 +262,8 @@ function prayerInfo() {
     const tm = new Date(now); tm.setDate(tm.getDate() + 1);
     next = PRAYERS[0]; left = timesFor(tm).fajr + 1440 - cur;
   }
-  const done = S.prayers[today()] || {};
   const h = Math.floor(left / 60), m = left % 60;
-  return { t, next, done, leftText: (h ? h + ' soat ' : '') + m + ' daq', count: PRAYERS.filter(p => !p.info && done[p.k]).length };
+  return { t, next, leftText: (h ? h + ' soat ' : '') + m + ' daq', passed: Object.fromEntries(PRAYERS.map(p => [p.k, t[p.k] <= cur])) };
 }
 
 /* ---------- Yordamchi hisoblar ---------- */
@@ -437,7 +436,7 @@ function vToday() {
       <div style="font-size:12px;font-weight:600;background:rgba(255,255,255,.16);padding:4px 10px;border-radius:99px">${esc(S.city)}</div></div>
     <div class="row" style="align-items:baseline;gap:10px"><div class="num" style="font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1">${hm(p.t[p.next.k])}</div>
       <div style="font-size:14px;font-weight:500;opacity:.9">${p.leftText} qoldi</div></div>
-    <div class="row" style="gap:6px">${PRAYERS.filter(x => !x.info).map(x => `<div class="col" style="flex:1;gap:4px;align-items:center"><div style="height:4px;width:100%;border-radius:2px;background:${p.done[x.k] ? '#fff' : 'rgba(255,255,255,.3)'}"></div><div style="font-size:11px;opacity:.9">${x.name}</div></div>`).join('')}</div>
+    <div class="row" style="gap:6px">${PRAYERS.filter(x => !x.info).map(x => `<div class="col" style="flex:1;gap:4px;align-items:center"><div style="height:4px;width:100%;border-radius:2px;background:${p.passed[x.k] ? '#fff' : 'rgba(255,255,255,.3)'}"></div><div style="font-size:11px;opacity:.9">${x.name}</div></div>`).join('')}</div>
   </button>
   <div class="grid2">
     <button class="card col" data-a="go" data-tab="sport" style="gap:10px;padding:16px">
@@ -500,15 +499,13 @@ function vNamoz() {
   return `
   <div class="col" style="gap:4px"><div class="eyebrow">${esc(S.city)} · ${n.getDate()}-${MONTHS[n.getMonth()]}</div><div class="h1">Namoz vaqtlari</div></div>
   <div class="row" style="gap:14px;background:var(--accent);color:#fff;border-radius:22px;padding:16px 18px">
-    <div style="width:56px;height:56px;border-radius:28px;border:3px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0">${p.count}/5</div>
-    <div class="col" style="gap:2px"><div style="font-size:13px;opacity:.85;font-weight:600">Bugun o'qilgan namozlar</div><div style="font-size:17px;font-weight:700">${p.next.name}gacha ${p.leftText}</div></div>
+    <div style="width:56px;height:56px;border-radius:28px;border:3px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">${svg(I.timer, { s: 26, c: '#fff', w: 2 })}</div>
+    <div class="col" style="gap:2px"><div style="font-size:13px;opacity:.85;font-weight:600">Keyingi namoz · ${p.next.name} · ${hm(p.t[p.next.k])}</div><div style="font-size:17px;font-weight:700">${p.leftText} qoldi</div></div>
   </div>
   <div class="card col" style="border-radius:22px;padding:4px 6px">
-    ${PRAYERS.map(x => { const nx = x === p.next; return `<div class="row" style="gap:12px;padding:8px 10px;border-radius:16px;${nx ? 'background:#DCEBE3' : ''}">
+    ${PRAYERS.map(x => { const nx = x === p.next; return `<div class="row" style="gap:12px;padding:12px 12px;border-radius:16px;${nx ? 'background:#DCEBE3' : ''}${x.info ? ';color:var(--mute)' : ''}">
       <div class="col" style="flex:1;gap:1px"><div style="font-size:16px;font-weight:700">${x.name}</div><div class="sm">${nx ? 'Keyingi namoz' : x.note}</div></div>
       <div class="num" style="font-size:20px;font-weight:800;letter-spacing:-.01em">${hm(p.t[x.k])}</div>
-      ${x.info ? `<div style="width:44px;display:flex;justify-content:center">${svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>', { s: 20, c: '#9A5A0C' })}</div>`
-        : `<button class="plain" data-a="pray" data-k="${x.k}" aria-label="${x.name} o'qildi deb belgilash" aria-pressed="${!!p.done[x.k]}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center">${checkBox(p.done[x.k])}</button>`}
     </div>`; }).join('')}
   </div>
   <button class="card row" data-a="go" data-tab="zikr" style="gap:14px">
@@ -927,15 +924,13 @@ const A = {
       title: 'Taqvimga eksport', fields: [], saveLabel: 'Yopish', onSave() {},
       body: `<div class="sm" style="line-height:1.55">Fayl yuklab olinadi. Uni ochganingizda iPhone voqealar ro'yxatini ko'rsatadi — <b>«Добавить все»</b> ni bosing. Shundan keyin vaqti kelganda bildirishnomani Taqvim (Календарь) o'zi chiqaradi, Kundalik yopiq bo'lsa ham.</div>
         <button type="button" class="btn primary" data-a="icsRem" style="flex:none">Eslatmalar — har kuni (${S.reminders.filter(r => r.time).length + book} ta)</button>
-        <button type="button" class="btn" data-a="icsPray">Namoz vaqtlari — keyingi 30 kun</button>
-        <div class="sm" style="line-height:1.55">Fayl ochilmasa: <button type="button" class="plain" data-a="icsShare" data-k="rem" style="color:var(--accent);font-weight:700;font-size:12px">eslatmalarni</button> yoki <button type="button" class="plain" data-a="icsShare" data-k="pray" style="color:var(--accent);font-weight:700;font-size:12px">namoz vaqtlarini</button> ulashish orqali <b>«Сохранить в Файлы»</b> ga saqlang va Файлы ilovasidan oching.</div>
-        <div class="sm" style="line-height:1.55">Eslatmani o'zgartirsangiz, qayta eksport qiling — taqvimdagi eskisi o'zi o'chmaydi, uni Taqvimdan o'chiring. Namoz vaqtlarini har oyda bir marta yangilang.</div>`
+        <div class="sm" style="line-height:1.55">Fayl ochilmasa: <button type="button" class="plain" data-a="icsShare" style="color:var(--accent);font-weight:700;font-size:12px">ulashish orqali</button> <b>«Сохранить в Файлы»</b> ga saqlang va Файлы ilovasidan oching.</div>
+        <div class="sm" style="line-height:1.55">Eslatmani o'zgartirsangiz, qayta eksport qiling — taqvimdagi eskisi o'zi o'chmaydi, uni Taqvimdan o'chiring.</div>`
     });
   },
   icsRem() { saveICS('kundalik-eslatmalar.ics', remindersICS()); },
-  icsPray() { saveICS('kundalik-namoz.ics', prayersICS()); },
-  icsShare(d) {
-    const name = d.k === 'rem' ? 'kundalik-eslatmalar.ics' : 'kundalik-namoz.ics', file = new File([d.k === 'rem' ? remindersICS() : prayersICS()], name, { type: 'text/calendar' });
+  icsShare() {
+    const name = 'kundalik-eslatmalar.ics', file = new File([remindersICS()], name, { type: 'text/calendar' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: name }).catch(() => {});
     else toast('Bu qurilmada ulashish ishlamaydi');
   },
@@ -947,7 +942,6 @@ const A = {
     });
   },
 
-  pray(d) { const k = today(); S.prayers[k] = S.prayers[k] || {}; S.prayers[k][d.k] = !S.prayers[k][d.k]; commit(); },
 
   zPick(d) { const z = zikr(); z.sel = +d.i; z.count = 0; commit(); },
   zTap() { const z = zikr(), t = ZIKRS[z.sel].target; z.total++; if (z.count + 1 >= t) { z.count = 0; z.rounds++; } else z.count++; commit(); },
@@ -1058,15 +1052,6 @@ function remindersICS() {
   const d = new Date(), ev = S.reminders.filter(r => /^\d\d:\d\d$/.test(r.time)).map(r => icsEvent('rem-' + r.id, icsLocal(d, r.time), r.label, 15, true));
   if (S.book.remind && S.book.title) ev.push(icsEvent('book', icsLocal(d, S.book.time), 'Kitob: ' + S.book.title + ' — ' + S.book.goal + ' bet', 30, true));
   return icsWrap('Kundalik eslatmalar', ev);
-}
-function prayersICS() {
-  const ev = [];
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(); d.setDate(d.getDate() + i);
-    const t = timesFor(d);
-    PRAYERS.filter(p => !p.info).forEach(p => ev.push(icsEvent('namoz-' + dkey(d) + '-' + p.k, icsLocal(d, hm(t[p.k])), p.name + ' namozi', 10, false)));
-  }
-  return icsWrap('Namoz vaqtlari — ' + S.city, ev);
 }
 function saveICS(name, text) {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar' })), a = document.createElement('a');
