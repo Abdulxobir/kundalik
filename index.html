@@ -727,10 +727,10 @@ function vPul() {
   <div class="lbl">Shu oydagi xarajatlar</div>
   ${used.length > 1 ? `<div class="chips">${['all', ...used].map(k => `<button class="chip${U.cat === k ? ' on' : ''}" data-a="cat" data-k="${k}">${k === 'all' ? 'Hammasi' : CATS[k].label}</button>`).join('')}</div>` : ''}
   <div class="card col" style="border-radius:22px;padding:4px 16px;margin-bottom:70px">
-    ${list.length ? list.map((x, i) => { const c = CATS[x.cat] || CATS.boshqa; return `<button class="plain row" data-a="expEdit" data-id="${x.id}" style="gap:12px;padding:11px 0;width:100%;${i < list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+    ${list.length ? list.map((x, i) => { const c = CATS[x.cat] || CATS.boshqa; return `<div class="row" style="gap:8px;padding:6px 0;${i < list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}"><button class="plain row" data-a="expEdit" data-id="${x.id}" style="gap:12px;flex:1;min-width:0;min-height:48px">
       <span style="width:38px;height:38px;border-radius:12px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0">${c.ab}</span>
       <span class="col" style="flex:1;gap:1px;min-width:0"><span style="font-size:15px;font-weight:700">${esc(x.title)}</span><span class="sm">${c.label} · ${whenText(x.ts)}</span></span>
-      <span class="num" style="font-size:15px;font-weight:800">−${money(x.amount)}</span></button>`; }).join('')
+      <span class="num" style="font-size:15px;font-weight:800">−${money(x.amount)}</span></button><button class="round" data-a="expDel" data-id="${x.id}" aria-label="${esc(x.title)} — o'chirish" style="width:40px;height:40px;border:none;background:#F7E9E6;color:#A3261B;flex-shrink:0">${svg(I.trash, { s: 17, w: 2 })}</button></div>`; }).join('')
       : `<div class="empty">Bu oyda hali xarajat yo'q.<br>Yuqoridagi turkumlardan birini bosing.</div>`}
   </div>`;
 }
@@ -813,9 +813,9 @@ function vPulReport() {
   </div>
   <div class="lbl">${showAll ? 'Xarajatlar' : 'Eng katta 10 ta xarajat'}</div>
   <div class="card col" style="border-radius:22px;padding:4px 16px">
-    ${list.map((x, i) => { const c = CATS[x.cat] || CATS.boshqa, d = new Date(x.ts); return `<button class="plain row" data-a="expEdit" data-id="${x.id}" style="gap:12px;padding:10px 0;width:100%;${i < list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+    ${list.map((x, i) => { const c = CATS[x.cat] || CATS.boshqa, d = new Date(x.ts); return `<div class="row" style="gap:8px;padding:6px 0;${i < list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}"><button class="plain row" data-a="expEdit" data-id="${x.id}" style="gap:12px;flex:1;min-width:0;min-height:48px">
       <span class="col" style="flex:1;gap:1px;min-width:0"><span style="font-size:15px;font-weight:700">${esc(x.title)}</span><span class="sm num">${c.label} · ${d.getDate()}-${MONTHS[d.getMonth()].slice(0, 3)} ${pad(d.getHours())}:${pad(d.getMinutes())}</span></span>
-      <span class="num" style="font-size:15px;font-weight:800">−${money(x.amount)}</span></button>`; }).join('')}
+      <span class="num" style="font-size:15px;font-weight:800">−${money(x.amount)}</span></button><button class="round" data-a="expDel" data-id="${x.id}" aria-label="${esc(x.title)} — o'chirish" style="width:40px;height:40px;border:none;background:#F7E9E6;color:#A3261B;flex-shrink:0">${svg(I.trash, { s: 17, w: 2 })}</button></div>`; }).join('')}
   </div>` : `<div class="card empty">Bu davrda xarajat yozilmagan.</div>`}
   <div class="col" style="gap:8px">
     <button class="btn primary" data-a="xlsx" data-k="period" style="flex:none;${items.length ? '' : 'opacity:.5'}" ${items.length ? '' : 'disabled'}>Excel'ga yuklash — ${rangeLabel(r)}</button>
@@ -1098,6 +1098,7 @@ const A = {
   async xlsx(d) { await exportXLSX(d.k === 'all' ? null : pulRange(U.rp, U.rpOff)); },
   expQuick(d) { expSheet(null, d.k); },
   expEdit(d) { expSheet(d.id); },
+  expDel(d) { removeExpense(d.id); },
 
   qtab(d) { U.qtab = d.k; render(); },
   noteAdd() { U.qtab = 'notes'; noteSheet(null); },
@@ -1162,6 +1163,12 @@ function prodUpdate(search) {
 }
 // Tez qo'shishdan kelgan yozuvmi (eski yozuvlarda tpl yo'q — nom va kaloriya bo'yicha)
 const sameTpl = (e, x) => e.tpl ? e.tpl === x.id : e.name === x.name && e.kcal === x.kcal;
+function removeExpense(id) {
+  const i = S.expenses.findIndex(e => e.id === id); if (i < 0) return;
+  const [e] = S.expenses.splice(i, 1);
+  toast(`${e.title} — ${money(e.amount)} so'm o'chirildi`, () => { S.expenses.splice(Math.min(i, S.expenses.length), 0, e); });
+  commit();
+}
 function removeFood(k, id) {
   const l = S.food[k] || [], i = l.findIndex(e => e.id === id); if (i < 0) return;
   const [e] = l.splice(i, 1);
@@ -1252,7 +1259,7 @@ function expSheet(id, cat, title0) {
       if (x) Object.assign(x, { amount, title, cat }); else S.expenses.push({ id: uid(), amount, title, cat, ts: Date.now() });
       if (!x && v.pre === 'Ha') S.expPresets.push({ id: uid(), amounts: [amount], title, cat });
     },
-    onDelete: x ? () => { S.expenses = S.expenses.filter(e => e.id !== id); } : null
+    onDelete: x ? () => removeExpense(id) : null
   });
 }
 function presetSheet(x) {
