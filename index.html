@@ -381,7 +381,7 @@ const I = {
   card: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
   note: '<path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h6"/>',
   beads: '<circle cx="12" cy="5" r="2"/><circle cx="18" cy="10" r="2"/><circle cx="16" cy="17" r="2"/><circle cx="8" cy="17" r="2"/><circle cx="6" cy="10" r="2"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>', check: '<path d="M5 12l5 5 9-10"/>', back: '<path d="M15 6l-6 6 6 6"/>', fwd: '<path d="M9 6l6 6-6 6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', check: '<path d="M5 12l5 5 9-10"/>', back: '<path d="M15 6l-6 6 6 6"/>', fwd: '<path d="M9 6l6 6-6 6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>', timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
 };
@@ -526,16 +526,21 @@ function vFood() {
   <button class="btn primary" data-a="prodAdd" style="flex:none">${svg(I.search, { s: 18, c: '#fff', w: 2.2 })} Mahsulot qo'shish (gramm bilan)</button>
   <div class="lbl">Bugun yeyilgan</div>
   <div class="card col" style="border-radius:22px;padding:4px 16px">
-    ${f.list.length ? f.list.map((x, i) => `<button class="plain between row" data-a="fEdit" data-id="${x.id}" style="gap:12px;padding:11px 0;width:100%;${i < f.list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
-      <span class="col" style="flex:1;gap:2px;min-width:0"><span style="font-size:15px;font-weight:700">${esc(x.name)}</span><span class="sm num">${macro(x)}</span></span>
-      <span class="sm num">${pad(new Date(x.ts).getHours())}:${pad(new Date(x.ts).getMinutes())}</span></button>`).join('')
+    ${f.list.length ? f.list.map((x, i) => `<div class="row" style="gap:8px;padding:6px 0;${i < f.list.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+      <button class="plain col" data-a="fEdit" data-id="${x.id}" style="flex:1;gap:2px;min-width:0;min-height:48px;justify-content:center"><span style="font-size:15px;font-weight:700">${esc(x.name)}</span>
+        <span class="sm num">${macro(x)} · ${pad(new Date(x.ts).getHours())}:${pad(new Date(x.ts).getMinutes())}</span></button>
+      <button class="round" data-a="fDel" data-id="${x.id}" aria-label="${esc(x.name)} — o'chirish" style="width:44px;height:44px;border:none;background:#F7E9E6;color:#A3261B">${svg(I.trash, { s: 18, w: 2 })}</button></div>`).join('')
       : `<div class="empty">Bugun hali hech narsa yozilmagan.<br>Pastdagi taomlardan birini bosing.</div>`}
   </div>
   <div class="between row"><div class="lbl">Tez qo'shish</div><button class="plain" data-a="foodEditToggle" style="font-size:12px;font-weight:700;color:var(--accent);min-height:32px">${U.foodEdit ? 'Tayyor' : 'Tahrirlash'}</button></div>
   <div class="col" style="gap:8px">
-    ${S.foods.map(x => `<button class="card between row" data-a="fQuick" data-id="${x.id}" style="border-radius:16px;padding:10px 14px;min-height:56px;gap:10px">
-      <span class="col" style="flex:1;min-width:0;gap:2px"><span style="font-size:15px;font-weight:700">${esc(x.name)}</span><span class="sm num">${macro(x)}</span></span>
-      <span style="color:${U.foodEdit ? 'var(--mute)' : 'var(--accent)'};display:flex;flex-shrink:0">${U.foodEdit ? svg(I.fwd, { s: 20, w: 2 }) : svg(I.plus, { s: 22, w: 2.4 })}</span></button>`).join('')}
+    ${S.foods.map(x => { const n = f.list.filter(e => sameTpl(e, x)).length; return `<div class="card row" style="border-radius:16px;padding:6px 6px 6px 14px;min-height:60px;gap:6px;${n && !U.foodEdit ? 'border-color:var(--accent)' : ''}">
+      <button class="plain col" data-a="fQuick" data-id="${x.id}" style="flex:1;min-width:0;gap:2px;min-height:48px;justify-content:center"><span style="font-size:15px;font-weight:700">${esc(x.name)}</span><span class="sm num">${macro(x)}</span></button>
+      ${U.foodEdit ? `<span style="color:var(--mute);display:flex;padding:0 10px">${svg(I.fwd, { s: 20, w: 2 })}</span>`
+        : `${n ? `<button class="round" data-a="fMinus" data-id="${x.id}" aria-label="${esc(x.name)} — bittasini olib tashlash" style="width:44px;height:44px">${svg(I.minus, { s: 18, w: 2.4 })}</button>
+        <span class="num" style="min-width:16px;text-align:center;font-size:15px;font-weight:800">${n}</span>` : ''}
+        <button class="round fill" data-a="fQuick" data-id="${x.id}" aria-label="${esc(x.name)} qo'shish" style="width:44px;height:44px">${svg(I.plus, { s: 18, c: '#fff', w: 2.4 })}</button>`}
+    </div>`; }).join('')}
     <button class="btn" data-a="fAdd">+ Qo'lda kiritish</button>
   </div>
   <div class="sm" style="text-align:center;line-height:1.5;padding:0 8px">Me'yor vazn, bo'y, yosh va maqsadga qarab hisoblanadi — Sozlamalarda (Bugun ekrani, ⚙) o'zgartiring. Taomlardagi raqamlar taxminiy; gramm — tayyor (pishgan) holatdagi og'irlik.</div>`;
@@ -741,6 +746,9 @@ function render() {
   app.innerHTML = `<div class="scroll">${VIEWS[U.tab]()}</div>
     ${U.tab === 'pul' ? `<button class="fab" data-a="expAdd" aria-label="Xarajat qo'shish">${svg(I.plus, { s: 26, c: '#fff', w: 2.4 })}</button>` : ''}
     <nav aria-label="Asosiy menyu">${NAV.map(n => `<button class="${navTab === n[0] ? 'on' : ''}" data-a="go" data-tab="${n[0]}">${svg(n[2])}${n[1]}</button>`).join('')}</nav>
+    ${U.toast ? `<div id="toast" role="status" class="row" style="position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 84px);z-index:9;background:var(--ink);color:#fff;border-radius:16px;padding:6px 6px 6px 16px;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)">
+      <span style="flex:1;font-size:14px;font-weight:600;min-width:0">${esc(U.toast.text)}</span>
+      ${U.toast.undo ? `<button class="plain" data-a="undo" style="color:#7FD1B0;font-size:14px;font-weight:800;padding:0 12px;min-height:40px">Bekor qilish</button>` : ''}</div>` : ''}
     ${sheetHTML()}`;
   app.querySelector('.scroll').scrollTop = top;
   lastTab = U.tab;
@@ -781,8 +789,17 @@ const A = {
   fQuick(d) {
     const x = S.foods.find(e => e.id === d.id); if (!x) return;
     if (U.foodEdit) return tplSheet(x);
-    const k = today(); S.food[k] = S.food[k] || []; S.food[k].push({ id: uid(), name: x.name, g: x.g || 0, kcal: x.kcal, p: x.p, c: x.c || 0, f: x.f || 0, ts: Date.now() }); commit();
+    const k = today(), e = { id: uid(), tpl: x.id, name: x.name, g: x.g || 0, kcal: x.kcal, p: x.p, c: x.c || 0, f: x.f || 0, ts: Date.now() };
+    S.food[k] = S.food[k] || []; S.food[k].push(e);
+    toast(`${x.name} qo'shildi`, () => { S.food[k] = (S.food[k] || []).filter(y => y.id !== e.id); });
+    commit();
   },
+  fMinus(d) {
+    const x = S.foods.find(e => e.id === d.id), l = S.food[today()] || [];
+    for (let i = l.length - 1; i >= 0; i--) if (x && sameTpl(l[i], x)) return removeFood(today(), l[i].id);
+  },
+  fDel(d) { removeFood(today(), d.id); },
+  undo() { const t = U.toast; clearTimeout(toastTimer); U.toast = null; if (t && t.undo) t.undo(); commit(); },
   fAdd() { foodSheet(null); },
   prodAdd() {
     U.prodTouched = false;
@@ -933,6 +950,21 @@ function prodUpdate(search) {
     <div class="num" style="font-size:17px;font-weight:800;margin-top:4px">${m.kcal} kkal</div>
     <div class="num" style="font-size:14px;font-weight:700;margin-top:2px">oqsil ${m.p} g · uglevod ${m.c} g · yog' ${m.f} g</div>`;
 }
+// Tez qo'shishdan kelgan yozuvmi (eski yozuvlarda tpl yo'q — nom va kaloriya bo'yicha)
+const sameTpl = (e, x) => e.tpl ? e.tpl === x.id : e.name === x.name && e.kcal === x.kcal;
+function removeFood(k, id) {
+  const l = S.food[k] || [], i = l.findIndex(e => e.id === id); if (i < 0) return;
+  const [e] = l.splice(i, 1);
+  toast(`${e.name} o'chirildi`, () => { const a = S.food[k] = S.food[k] || []; a.splice(Math.min(i, a.length), 0, e); });
+  commit();
+}
+// Pastda 5 soniya turadigan xabar, "Bekor qilish" tugmasi bilan
+let toastTimer = null;
+function toast(text, undo) {
+  clearTimeout(toastTimer);
+  U.toast = { text, undo };
+  toastTimer = setTimeout(() => { U.toast = null; const el = document.getElementById('toast'); if (el) el.remove(); }, 5000);
+}
 function foodSheet(id) {
   const k = today(), x = id ? (S.food[k] || []).find(e => e.id === id) : null;
   openSheet({
@@ -945,7 +977,7 @@ function foodSheet(id) {
       S.food[k] = S.food[k] || []; S.food[k].push(Object.assign({ id: uid(), ts: Date.now() }, data));
       if (v.tpl === 'Ha') S.foods.push(Object.assign({ id: uid() }, data));
     },
-    onDelete: x ? () => { S.food[k] = S.food[k].filter(e => e.id !== id); } : null
+    onDelete: x ? () => removeFood(k, id) : null
   });
 }
 function tplSheet(x) {
