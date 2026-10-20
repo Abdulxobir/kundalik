@@ -116,6 +116,8 @@ const CATS = {
   mashina: { label: 'Mashina', ab: 'Ms', bg: '#E4E9E6', fg: '#2D3B35' },
   cs: { label: 'Counter-Strike', ab: 'CS', bg: '#E6E0F2', fg: '#4B2F86' },
   ovqat: { label: 'Oziq-ovqat', ab: 'Oz', bg: '#DCEBE3', fg: '#0E5E46' },
+  odat: { label: 'Shaxsiy odat', ab: 'Od', bg: '#F0E6D8', fg: '#7A4E12' },
+  ozuqa: { label: 'Sport ozuqa', ab: 'SO', bg: '#E3F0EA', fg: '#1E6B4E' },
   sport: { label: 'Sport', ab: 'Sp', bg: '#EEE3EA', fg: '#5B2E48' },
   kitob: { label: 'Kitob', ab: 'Kt', bg: '#F6E7CF', fg: '#9A5A0C' },
   transport: { label: 'Transport', ab: 'Tr', bg: '#DDE5F0', fg: '#1F3A5F', old: true },
@@ -128,7 +130,7 @@ const DEFAULTS = {
   offsets: { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
   prayers: {},
   zikr: { date: '', sel: 0, count: 0, rounds: 0, total: 0 },
-  v: 5,
+  v: 6,
   plan: [
     { tag: 'Dam', title: 'Dam olish', ex: [] },
     { tag: "Ko'krak", title: "Ko'krak + biceps", ex: [['Shtanga jim (bench press)', '4 × 8', 4], ['Qiya skameykada gantel jim', '3 × 10', 3], ['Krossover', '3 × 12', 3], ['Biceps shtanga', '3 × 10', 3], ["Bolg'a (hammer curl)", '3 × 12', 3]] },
@@ -155,7 +157,13 @@ const DEFAULTS = {
   steps: {}, stepSrc: {}, stepGoal: 10000, stepTopic: '',
   sportDone: {},
   expenses: [],
-  expPresets: [],
+  expPresets: [
+    { id: 'u1', title: 'Taksi', cat: 'taksi', amounts: [10000, 12000, 14000] }, { id: 'u2', title: 'Shaxsiy odat', cat: 'odat', amounts: [25000] },
+    { id: 'u3', title: 'Obed', cat: 'obed', amounts: [30000, 50000, 70000] }, { id: 'u4', title: 'CS GO', cat: 'cs', amounts: [50000, 70000, 90000] },
+    { id: 'u5', title: 'Zal', cat: 'sport', amounts: [500000] }, { id: 'u6', title: 'Protein 2 kg', cat: 'ozuqa', amounts: [750000] },
+    { id: 'u7', title: 'Creatine', cat: 'ozuqa', amounts: [170000] }, { id: 'u8', title: 'Pampers', cat: 'pampers', amounts: [15000, 30000, 60000] },
+    { id: 'u9', title: 'Magazin (oziq-ovqat)', cat: 'ovqat', amounts: [25000, 50000, 100000] }, { id: 'u10', title: 'Ust-bosh', cat: 'ustbosh', amounts: [500000, 800000, 1200000] }
+  ],
   notes: [],
   book: { title: '', author: '', page: 0, total: 0, goal: 20, time: '21:00', remind: true, log: {} },
   reminders: [{ id: 'r1', label: 'Vitamin ichish', time: '08:00' }, { id: 'r2', label: "Ota-onaga qo'ng'iroq", time: '18:30' }, { id: 'r3', label: 'Ertangi rejani yozish', time: '22:00' }],
@@ -187,7 +195,12 @@ function load() {
     DEFAULTS.foods.forEach(f => { const e = out.foods.find(x => x.id === f.id); if (e && e.f == null && e.kcal === f.kcal) e.f = f.f; });
     out.foods = DEFAULTS.foods.filter(f => f.id[0] === 'd' && !out.foods.some(x => x.id === f.id)).map(f => Object.assign({}, f)).concat(out.foods);
   }
-  out.v = 5;
+  // v6: tugmalarda bir nechta summa; foydalanuvchining asosiy xarajatlari tugma bo'lib qo'shiladi
+  if ((s.v || 1) < 6) {
+    out.expPresets = (s.expPresets || []).map(x => x.amounts ? x : { id: x.id, title: x.title, cat: x.cat, amounts: [x.amount] });
+    out.expPresets = DEFAULTS.expPresets.filter(d => !out.expPresets.some(x => x.id === d.id)).map(d => JSON.parse(JSON.stringify(d))).concat(out.expPresets);
+  }
+  out.v = 6;
   return out;
 }
 let S = load();
@@ -692,16 +705,19 @@ function vPul() {
     <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(spent, S.budget)}%;background:#E9B45A;border-radius:4px"></div></div>
     <div class="between num" style="font-size:12px;opacity:.85"><div>Byudjet: ${money(S.budget)}</div><div>${S.budget - spent >= 0 ? 'Qoldi: ' + money(S.budget - spent) : 'Oshdi: ' + money(spent - S.budget)}</div></div>
   </div>
-  <div class="between row"><div class="lbl">Bir bosishda yozish</div>${S.expPresets.length ? `<button class="plain" data-a="presetEditToggle" style="font-size:12px;font-weight:700;color:var(--accent);min-height:32px">${U.presetEdit ? 'Tayyor' : 'Tahrirlash'}</button>` : ''}</div>
-  ${S.expPresets.length ? '' : `<div class="sm" style="line-height:1.5;margin-top:-6px">Har kuni takrorlanadigan xarajatlaringizni (masalan, "Taksi — 15 000") tugma qilib qo'ying: keyin bitta bosish bilan yoziladi.</div>`}
-  <div class="grid2" style="gap:8px">
-    ${S.expPresets.map(x => { const c = CATS[x.cat] || CATS.boshqa; return `<button class="card row" data-a="presetTap" data-id="${x.id}" style="border-radius:16px;padding:10px 12px;gap:10px;min-height:62px">
-      <span style="width:32px;height:32px;border-radius:10px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${c.ab}</span>
-      <span class="col" style="flex:1;min-width:0;gap:1px"><span style="font-size:14px;font-weight:700;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word">${esc(x.title)}</span><span class="sm num">${money(x.amount)}</span></span>
-      <span style="color:${U.presetEdit ? 'var(--mute)' : 'var(--accent)'};display:flex;flex-shrink:0">${U.presetEdit ? svg(I.fwd, { s: 18, w: 2 }) : svg(I.plus, { s: 20, w: 2.4 })}</span></button>`; }).join('')}
-    <button class="card row" data-a="presetAdd" style="border-radius:16px;padding:10px 12px;gap:8px;min-height:62px;border-style:dashed;color:var(--accent);justify-content:center;font-size:14px;font-weight:700">${svg(I.plus, { s: 18, w: 2.4 })} Tugma qo'shish</button>
+  <div class="between row"><div class="lbl">Asosiy xarajatlar · summani bosing</div><button class="plain" data-a="presetEditToggle" style="font-size:12px;font-weight:700;color:var(--accent);min-height:32px">${U.presetEdit ? 'Tayyor' : 'Tahrirlash'}</button></div>
+  <div class="col" style="gap:8px">
+    ${S.expPresets.map(x => { const c = CATS[x.cat] || CATS.boshqa, t = sum(ms.filter(e => e.title === x.title)); return `<div class="card col" style="border-radius:18px;padding:12px 14px;gap:10px">
+      <div class="between row" style="gap:10px"><span class="row" style="gap:10px;min-width:0">
+        <span style="width:30px;height:30px;border-radius:9px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">${c.ab}</span>
+        <span style="font-size:15px;font-weight:700">${esc(x.title)}</span></span>
+        ${U.presetEdit ? `<button class="chip" data-a="presetEdit" data-id="${x.id}" style="height:34px">Tahrirlash</button>` : `<span class="sm num" style="white-space:nowrap">${t ? 'oyda ' + money(t) : ''}</span>`}</div>
+      ${U.presetEdit ? '' : `<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${x.amounts.map(a => `<button class="chip num" data-a="presetAmt" data-id="${x.id}" data-v="${a}" style="background:#E6F0EA;border-color:#E6F0EA;color:var(--accent);height:42px;padding:0 4px;font-size:13px">${money(a)}</button>`).join('')}
+        <button class="chip" data-a="presetManual" data-id="${x.id}" style="height:42px;padding:0 4px;font-size:13px">Qo'lda…</button></div>`}
+    </div>`; }).join('')}
+    <button class="btn" data-a="presetAdd" style="border-style:dashed;color:var(--accent)">${svg(I.plus, { s: 18, w: 2.4 })} Yangi xarajat tugmasi</button>
   </div>
-  <div class="lbl">Turkum bo'yicha · summani o'zingiz yozasiz</div>
+  <div class="lbl">Boshqa turkumlar · summani o'zingiz yozasiz</div>
   <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
     ${Object.keys(CATS).filter(k => !CATS[k].old).map(k => { const c = CATS[k], t = sum(ms.filter(x => x.cat === k)); return `<button class="card col" data-a="expQuick" data-k="${k}" style="border-radius:16px;padding:10px;gap:6px;min-height:92px;align-items:flex-start">
       <span style="width:32px;height:32px;border-radius:10px;background:${c.bg};color:${c.fg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">${c.ab}</span>
@@ -1069,14 +1085,15 @@ const A = {
   psel(d) { U.psel = +d.i; render(); },
   presetEditToggle() { U.presetEdit = !U.presetEdit; render(); },
   presetAdd() { presetSheet(null); },
-  presetTap(d) {
+  presetEdit(d) { const x = S.expPresets.find(e => e.id === d.id); if (x) presetSheet(x); },
+  presetAmt(d) {
     const x = S.expPresets.find(e => e.id === d.id); if (!x) return;
-    if (U.presetEdit) return presetSheet(x);
-    const e = { id: uid(), amount: x.amount, title: x.title, cat: x.cat, ts: Date.now() };
+    const e = { id: uid(), amount: +d.v, title: x.title, cat: x.cat, ts: Date.now() };
     S.expenses.push(e);
-    toast(`${x.title} — ${money(x.amount)} so'm yozildi`, () => { S.expenses = S.expenses.filter(y => y.id !== e.id); });
+    toast(`${x.title} — ${money(e.amount)} so'm yozildi`, () => { S.expenses = S.expenses.filter(y => y.id !== e.id); });
     commit();
   },
+  presetManual(d) { const x = S.expPresets.find(e => e.id === d.id); if (x) expSheet(null, x.cat, x.title); },
   amtPick(d) { const f = document.querySelector('.sheet [name=amount]'); if (f) f.value = money(+d.v); },
   async xlsx(d) { await exportXLSX(d.k === 'all' ? null : pulRange(U.rp, U.rpOff)); },
   expQuick(d) { expSheet(null, d.k); },
@@ -1220,20 +1237,20 @@ function exSheet(i) {
     onDelete: e ? () => { day.ex.splice(i, 1); delete S.sportDone[weekDate(U.sportDay)]; } : null
   });
 }
-function expSheet(id, cat) {
-  const recent = cat ? [...new Set(S.expenses.filter(e => e.cat === cat).sort((a, b) => b.ts - a.ts).map(e => e.amount))].slice(0, 4) : [];
+function expSheet(id, cat, title0) {
+  const recent = cat ? [...new Set(S.expenses.filter(e => e.cat === cat && (!title0 || e.title === title0)).sort((a, b) => b.ts - a.ts).map(e => e.amount))].slice(0, 4) : [];
   const x = id ? S.expenses.find(e => e.id === id) : null, chips = (!x && recent.length ? [{ html: `<div class="col" style="gap:6px;margin-top:-4px"><span class="sm" style="font-weight:600">Oldingi summalar — bosing:</span><div class="chips">${recent.map(a => `<button type="button" class="chip" data-a="amtPick" data-v="${a}">${money(a)}</button>`).join('')}</div></div>` }] : []), labels = Object.keys(CATS).filter(k => !CATS[k].old || (x && x.cat === k)).map(k => CATS[k].label);
   openSheet({
-    title: x ? 'Xarajatni tahrirlash' : cat ? CATS[cat].label : 'Yangi xarajat', saveLabel: x ? 'Saqlash' : "Qo'shish",
+    title: x ? 'Xarajatni tahrirlash' : title0 || (cat ? CATS[cat].label : 'Yangi xarajat'), saveLabel: x ? 'Saqlash' : "Qo'shish",
     fields: [{ k: 'amount', label: "Summa (so'm)", type: 'number', value: x ? x.amount : '', ph: '0' }, ...chips,
-      { k: 'title', label: 'Izoh (ixtiyoriy)', value: x ? x.title : '', ph: cat ? CATS[cat].label : 'Masalan: Bozor' },
+      { k: 'title', label: 'Izoh (ixtiyoriy)', value: x ? x.title : title0 || '', ph: cat ? CATS[cat].label : 'Masalan: Bozor' },
       { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : (CATS[cat] || CATS[U.cat] || CATS.boshqa).label },
       ...(x ? [] : [{ k: 'pre', label: 'Bir bosishda yozish tugmasi qilib saqlansinmi?', type: 'select', options: ["Yo'q", 'Ha'], value: "Yo'q" }])],
     onSave(v) {
       const amount = num(v.amount); if (amount <= 0) return false;
       const cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa', title = v.title.trim() || CATS[cat].label;
       if (x) Object.assign(x, { amount, title, cat }); else S.expenses.push({ id: uid(), amount, title, cat, ts: Date.now() });
-      if (!x && v.pre === 'Ha') S.expPresets.push({ id: uid(), amount, title, cat });
+      if (!x && v.pre === 'Ha') S.expPresets.push({ id: uid(), amounts: [amount], title, cat });
     },
     onDelete: x ? () => { S.expenses = S.expenses.filter(e => e.id !== id); } : null
   });
@@ -1241,14 +1258,14 @@ function expSheet(id, cat) {
 function presetSheet(x) {
   const labels = Object.keys(CATS).filter(k => !CATS[k].old).map(k => CATS[k].label);
   openSheet({
-    title: x ? 'Tugmani tahrirlash' : 'Bir bosishda yozish tugmasi', saveLabel: x ? 'Saqlash' : "Qo'shish",
-    hint: x ? '' : "Masalan: Taksi — 15 000. Keyin shu tugmani bossangiz, xarajat darhol yoziladi.",
-    fields: [{ k: 'title', label: 'Nomi', value: x ? x.title : '', ph: 'Masalan: Taksi ishga' },
-      { k: 'amount', label: "Summa (so'm)", type: 'number', value: x ? x.amount : '', ph: '0' },
-      { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : CATS.taksi.label }],
+    title: x ? 'Tugmani tahrirlash' : 'Yangi xarajat tugmasi', saveLabel: x ? 'Saqlash' : "Qo'shish",
+    hint: "Bir nechta summani / bilan ajrating, masalan: 10 000 / 12 000 / 14 000. Har bir summa alohida tugma bo'ladi, yonida «Qo'lda…» ham turadi.",
+    fields: [{ k: 'title', label: 'Nomi', value: x ? x.title : '', ph: 'Masalan: Taksi' },
+      { k: 'amounts', label: "Summalar (so'm)", value: x ? x.amounts.map(money).join(' / ') : '', ph: '10 000 / 12 000' },
+      { k: 'cat', label: 'Turkum', type: 'select', options: labels, value: x ? (CATS[x.cat] || CATS.boshqa).label : CATS.boshqa.label }],
     onSave(v) {
-      const amount = num(v.amount); if (amount <= 0) return false;
-      const cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa', data = { amount, cat, title: v.title.trim() || CATS[cat].label };
+      const amounts = v.amounts.split(/[\/,;\n]+/).map(num).filter(a => a > 0).slice(0, 6); if (!amounts.length) return false;
+      const cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa', data = { amounts, cat, title: v.title.trim() || CATS[cat].label };
       if (x) Object.assign(x, data); else S.expPresets.push(Object.assign({ id: uid() }, data));
     },
     onDelete: x ? () => { S.expPresets = S.expPresets.filter(e => e.id !== x.id); } : null
