@@ -491,6 +491,7 @@ function vToday() {
       <span style="flex:1;font-size:15px;font-weight:500;${rd[r.id] && !U.remEdit ? 'text-decoration:line-through;color:#8A938E' : ''}">${esc(r.label)}</span>
       <span class="sm num">${esc(r.time)}</span></button>`).join('')}
     <button class="plain row" data-a="remAdd" style="gap:12px;min-height:44px;color:var(--accent);font-size:15px;font-weight:700">${svg(I.plus, { s: 22, w: 2.2 })} Eslatma qo'shish</button>
+    <button class="plain row" data-a="calExport" style="gap:12px;min-height:44px;color:var(--accent);font-size:15px;font-weight:700;border-top:1px solid #EEF0EC">${svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>', { s: 22, w: 2 })} Taqvimga eksport (bildirishnoma uchun)</button>
   </div>`;
 }
 
@@ -920,6 +921,24 @@ const A = {
   remToggle(d) { const k = today(); S.remDone[k] = S.remDone[k] || {}; S.remDone[k][d.id] = !S.remDone[k][d.id]; commit(); },
   remEdit() { U.remEdit = !U.remEdit; render(); },
   remDel(d) { S.reminders = S.reminders.filter(r => r.id !== d.id); commit(); },
+  calExport() {
+    const book = S.book.remind && S.book.title ? 1 : 0;
+    openSheet({
+      title: 'Taqvimga eksport', fields: [], saveLabel: 'Yopish', onSave() {},
+      body: `<div class="sm" style="line-height:1.55">Fayl yuklab olinadi. Uni ochganingizda iPhone voqealar ro'yxatini ko'rsatadi — <b>«Добавить все»</b> ni bosing. Shundan keyin vaqti kelganda bildirishnomani Taqvim (Календарь) o'zi chiqaradi, Kundalik yopiq bo'lsa ham.</div>
+        <button type="button" class="btn primary" data-a="icsRem" style="flex:none">Eslatmalar — har kuni (${S.reminders.filter(r => r.time).length + book} ta)</button>
+        <button type="button" class="btn" data-a="icsPray">Namoz vaqtlari — keyingi 30 kun</button>
+        <div class="sm" style="line-height:1.55">Fayl ochilmasa: <button type="button" class="plain" data-a="icsShare" data-k="rem" style="color:var(--accent);font-weight:700;font-size:12px">eslatmalarni</button> yoki <button type="button" class="plain" data-a="icsShare" data-k="pray" style="color:var(--accent);font-weight:700;font-size:12px">namoz vaqtlarini</button> ulashish orqali <b>«Сохранить в Файлы»</b> ga saqlang va Файлы ilovasidan oching.</div>
+        <div class="sm" style="line-height:1.55">Eslatmani o'zgartirsangiz, qayta eksport qiling — taqvimdagi eskisi o'zi o'chmaydi, uni Taqvimdan o'chiring. Namoz vaqtlarini har oyda bir marta yangilang.</div>`
+    });
+  },
+  icsRem() { saveICS('kundalik-eslatmalar.ics', remindersICS()); },
+  icsPray() { saveICS('kundalik-namoz.ics', prayersICS()); },
+  icsShare(d) {
+    const name = d.k === 'rem' ? 'kundalik-eslatmalar.ics' : 'kundalik-namoz.ics', file = new File([d.k === 'rem' ? remindersICS() : prayersICS()], name, { type: 'text/calendar' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: name }).catch(() => {});
+    else toast('Bu qurilmada ulashish ishlamaydi');
+  },
   remAdd() {
     openSheet({
       title: 'Yangi eslatma', saveLabel: "Qo'shish",
@@ -1026,6 +1045,35 @@ function removeFood(k, id) {
 const toastHTML = () => U.toast ? `<div id="toast" role="status" class="row" style="position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 84px);z-index:12;background:var(--ink);color:#fff;border-radius:16px;padding:6px 6px 6px 16px;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)">
       <span style="flex:1;font-size:14px;font-weight:600;min-width:0">${esc(U.toast.text)}</span>
       ${U.toast.undo ? `<button class="plain" data-a="undo" style="color:#7FD1B0;font-size:14px;font-weight:800;padding:0 12px;min-height:40px">Bekor qilish</button>` : ''}</div>` : '';
+/* ---------- Taqvim (.ics) eksporti ---------- */
+const icsEsc = t => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+const icsLocal = (d, hhmm) => dkey(d).replace(/-/g, '') + 'T' + hhmm.replace(':', '') + '00';
+function icsEvent(uid, start, title, mins, daily) {
+  return ['BEGIN:VEVENT', 'UID:' + uid + '@kundalik', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
+    'DTSTART:' + start, 'DURATION:PT' + mins + 'M', ...(daily ? ['RRULE:FREQ=DAILY'] : []), 'SUMMARY:' + icsEsc(title),
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(title), 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'];
+}
+const icsWrap = (name, events) => ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Kundalik//UZ', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:' + name, ...events.flat(), 'END:VCALENDAR'].join('\r\n') + '\r\n';
+function remindersICS() {
+  const d = new Date(), ev = S.reminders.filter(r => /^\d\d:\d\d$/.test(r.time)).map(r => icsEvent('rem-' + r.id, icsLocal(d, r.time), r.label, 15, true));
+  if (S.book.remind && S.book.title) ev.push(icsEvent('book', icsLocal(d, S.book.time), 'Kitob: ' + S.book.title + ' — ' + S.book.goal + ' bet', 30, true));
+  return icsWrap('Kundalik eslatmalar', ev);
+}
+function prayersICS() {
+  const ev = [];
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    const t = timesFor(d);
+    PRAYERS.filter(p => !p.info).forEach(p => ev.push(icsEvent('namoz-' + dkey(d) + '-' + p.k, icsLocal(d, hm(t[p.k])), p.name + ' namozi', 10, false)));
+  }
+  return icsWrap('Namoz vaqtlari — ' + S.city, ev);
+}
+function saveICS(name, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar' })), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast('Fayl tayyor — oching va «Добавить все» ni bosing');
+}
 let toastTimer = null;
 function toast(text, undo) {
   clearTimeout(toastTimer);
