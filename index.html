@@ -152,6 +152,7 @@ const DEFAULTS = {
     { id: 'f11', name: 'Osh 1 porsiya', g: 350, kcal: 650, p: 22, c: 75, f: 32 }, { id: 'f12', name: 'Kefir 1 stakan', g: 250, kcal: 130, p: 7, c: 10, f: 8 }
   ],
   food: {},
+  steps: {}, stepSrc: {}, stepGoal: 10000, stepTopic: '',
   sportDone: {},
   expenses: [],
   notes: [],
@@ -360,6 +361,37 @@ function targets() {
   const fat = Math.round(p.w * 0.9);
   return { kcal, prot, fat, carb: Math.max(0, Math.round((kcal - prot * 4 - fat * 9) / 4)) };
 }
+/* ---------- Qadamlar ---------- */
+// Qadam uzunligi ≈ bo'yning 41.5% i; sarflangan kaloriya ≈ 0.0005 × vazn (kg) har qadamga
+function stepInfo(k) {
+  const n = S.steps[k] || 0, src = S.stepSrc[k];
+  return { n, km: (n * S.profile.h * 0.415 / 100000).toFixed(1), kcal: Math.round(n * 0.0005 * S.profile.w),
+    src: !n ? '' : src && src !== 'manual' ? 'avto · ' + src : "qo'lda" };
+}
+const parseSteps = t => { const v = parseFloat(String(t).replace(/[\s ,]/g, '')); return isNaN(v) ? 0 : Math.round(v); };
+function stepTopic() { if (!S.stepTopic) { S.stepTopic = 'kundalik-' + uid() + Math.random().toString(36).slice(2, 8); save(); } return S.stepTopic; }
+const stepURL = () => 'https://ntfy.sh/' + stepTopic() + '/publish?message=';
+// iPhone "Shortcuts" (Команды) Health'dan qadamni o'qib ntfy.sh ga yuboradi; app ochilganda shu yerdan oladi
+let stepBusy = false;
+async function fetchSteps(manual) {
+  if (stepBusy || !S.stepTopic || navigator.onLine === false) return false;
+  stepBusy = true; let got = false;
+  try {
+    const r = await fetch('https://ntfy.sh/' + S.stepTopic + '/json?poll=1&since=12h');
+    (await r.text()).split('\n').forEach(line => {
+      let m; try { m = JSON.parse(line); } catch (e) { return; }
+      if (m.event !== 'message') return;
+      const d = new Date(m.time * 1000), k = dkey(d), n = parseSteps(m.message);
+      if (n > 0 && n >= (S.steps[k] || 0)) {
+        S.steps[k] = n; S.stepSrc[k] = pad(d.getHours()) + ':' + pad(d.getMinutes()); got = true;
+      }
+    });
+    if (got) { save(); if (!U.sheet) render(); }
+  } catch (e) {}
+  stepBusy = false;
+  if (manual) toast(got ? 'Qadamlar yangilandi' : "Yangi ma'lumot kelmadi");
+  return got;
+}
 function foodStats() {
   const list = S.food[today()] || [], t = targets();
   return { list, t, kcal: list.reduce((a, x) => a + x.kcal, 0), prot: list.reduce((a, x) => a + x.p, 0), carb: list.reduce((a, x) => a + (x.c || 0), 0), fat: list.reduce((a, x) => a + (x.f || 0), 0) };
@@ -381,7 +413,7 @@ const I = {
   card: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
   note: '<path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h6"/>',
   beads: '<circle cx="12" cy="5" r="2"/><circle cx="18" cy="10" r="2"/><circle cx="16" cy="17" r="2"/><circle cx="8" cy="17" r="2"/><circle cx="6" cy="10" r="2"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', check: '<path d="M5 12l5 5 9-10"/>', back: '<path d="M15 6l-6 6 6 6"/>', fwd: '<path d="M9 6l6 6-6 6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', foot: '<path d="M7 14c-1.7 0-3-1.6-3-4.5S5.3 4 7 4s3 2.6 3 5.5S8.7 14 7 14zM5 17.5a2 2 0 1 0 4 0v-1.5H5zM17 18c1.7 0 3-1.6 3-4.5S18.7 8 17 8s-3 2.6-3 5.5 1.3 4.5 3 4.5zM15 21.5a2 2 0 1 0 4 0V20h-4z"/>', minus: '<path d="M5 12h14"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', check: '<path d="M5 12l5 5 9-10"/>', back: '<path d="M15 6l-6 6 6 6"/>', fwd: '<path d="M9 6l6 6-6 6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>', timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
 };
@@ -421,6 +453,13 @@ function vToday() {
       <div class="bar" style="margin-top:auto"><i style="width:${pct(z.total, S.zikrGoal)}%;background:var(--accent)"></i></div>
     </button>
   </div>
+  ${(st => `<button class="card col" data-a="steps" style="gap:10px">
+    <div class="between row"><div class="row" style="gap:10px"><span style="width:36px;height:36px;border-radius:12px;background:#DDE5F0;display:flex;align-items:center;justify-content:center">${svg(I.foot, { s: 20, c: '#1F3A5F', w: 1.8 })}</span>
+      <span class="col" style="gap:2px"><span class="lbl">Qadamlar · bugun</span><span class="num" style="font-size:20px;font-weight:800">${money(st.n)} <span style="font-size:13px;font-weight:600;color:var(--mute)">/ ${money(S.stepGoal)}</span></span></span></div>
+      <span class="sm" style="text-align:right">${st.src}</span></div>
+    <div class="bar"><i style="width:${pct(st.n, S.stepGoal)}%;background:#1F3A5F"></i></div>
+    <div class="sm num">≈ ${st.km} km · ≈ ${st.kcal} kkal sarflandi</div>
+  </button>`)(stepInfo(today()))}
   ${(f => `<button class="card col" data-a="goFood" style="gap:10px">
     <div class="between row"><div class="lbl">Ovqat · bugun</div><div class="sm num">${f.kcal} / ${f.t.kcal} kkal</div></div>
     <div class="bar"><i style="width:${pct(f.kcal, f.t.kcal)}%;background:#9A5A0C"></i></div>
@@ -746,9 +785,7 @@ function render() {
   app.innerHTML = `<div class="scroll">${VIEWS[U.tab]()}</div>
     ${U.tab === 'pul' ? `<button class="fab" data-a="expAdd" aria-label="Xarajat qo'shish">${svg(I.plus, { s: 26, c: '#fff', w: 2.4 })}</button>` : ''}
     <nav aria-label="Asosiy menyu">${NAV.map(n => `<button class="${navTab === n[0] ? 'on' : ''}" data-a="go" data-tab="${n[0]}">${svg(n[2])}${n[1]}</button>`).join('')}</nav>
-    ${U.toast ? `<div id="toast" role="status" class="row" style="position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 84px);z-index:9;background:var(--ink);color:#fff;border-radius:16px;padding:6px 6px 6px 16px;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)">
-      <span style="flex:1;font-size:14px;font-weight:600;min-width:0">${esc(U.toast.text)}</span>
-      ${U.toast.undo ? `<button class="plain" data-a="undo" style="color:#7FD1B0;font-size:14px;font-weight:800;padding:0 12px;min-height:40px">Bekor qilish</button>` : ''}</div>` : ''}
+    ${toastHTML()}
     ${sheetHTML()}`;
   app.querySelector('.scroll').scrollTop = top;
   lastTab = U.tab;
@@ -773,6 +810,32 @@ const A = {
   goFood() { U.tab = 'sport'; U.stab = 'food'; render(); },
   stab(d) { U.stab = d.k; U.foodEdit = false; render(); },
   rTab(d) { U.ftab = d.k; render(); },
+  steps() {
+    const k = today(), last = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return dkey(d); });
+    openSheet({
+      title: 'Qadamlar', saveLabel: 'Saqlash',
+      fields: [{ k: 'n', label: "Bugungi qadamlar (qo'lda kiritish)", type: 'number', value: S.steps[k] || '', ph: '0' }],
+      body: `<div class="card col" style="border-radius:18px;gap:8px">
+          <div style="font-size:15px;font-weight:800;color:var(--ink)">Avtomatik olish</div>
+          <div class="sm" style="line-height:1.5">iPhone'dagi <b>Shortcuts (Команды)</b> ilovasi qadamlarni Sog'liq (Health) dan o'qib, shu manzilga yuboradi. App ochilganda o'zi oladi.</div>
+          <div class="num" style="font-size:12px;font-weight:700;color:var(--ink);background:var(--bg);border-radius:10px;padding:8px 10px;word-break:break-all;-webkit-user-select:all;user-select:all">${esc(stepURL())}</div>
+          <div class="row" style="gap:8px"><button type="button" class="btn" data-a="stepsCopy" style="flex:1;height:44px">Manzilni nusxalash</button>
+            <button type="button" class="btn" data-a="stepsSync" style="flex:1;height:44px">Hozir tekshirish</button></div>
+        </div>
+        <div class="card col" style="border-radius:18px;padding:4px 14px">${last.map((d, i) => { const x = stepInfo(d); return `<div class="between row num" style="padding:9px 0;${i < 6 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+          <span style="font-size:14px;font-weight:600;color:var(--ink)">${i ? WEEKDAYS[new Date(d + 'T12:00').getDay()] + ', ' + shortDate(d) : 'Bugun'}</span>
+          <span style="font-size:14px;font-weight:800;color:${x.n >= S.stepGoal ? 'var(--accent)' : 'var(--ink)'}">${x.n ? money(x.n) : '—'}</span></div>`; }).join('')}</div>`,
+      onSave(v) {
+        const n = parseSteps(v.n);
+        if (n > 0) { S.steps[k] = n; S.stepSrc[k] = 'manual'; } else { delete S.steps[k]; delete S.stepSrc[k]; }
+      }
+    });
+  },
+  stepsCopy() {
+    const u = stepURL();
+    (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast('Manzil nusxalandi'), () => toast('Manzilni bosib turib nusxalang'));
+  },
+  async stepsSync() { stepTopic(); await fetchSteps(true); },
   rPer(d) { U.rper = d.k; U.rsel = null; render(); },
   rMet(d) { U.rmet = d.k; render(); },
   rSel(d) { U.rsel = d.k; render(); },
@@ -839,6 +902,7 @@ const A = {
         { k: 'city', label: 'Shahar', type: 'select', options: Object.keys(CITIES), value: S.city },
         { k: 'budget', label: "Oylik byudjet (so'm)", type: 'number', value: S.budget },
         { k: 'zikrGoal', label: 'Kunlik zikr maqsadi', type: 'number', value: S.zikrGoal },
+        { k: 'stepGoal', label: 'Kunlik qadam maqsadi', type: 'number', value: S.stepGoal },
         { k: 'w', label: 'Vazn (kg)', type: 'number', value: S.profile.w }, { k: 'h', label: "Bo'y (sm)", type: 'number', value: S.profile.h },
         { k: 'age', label: 'Yosh', type: 'number', value: S.profile.age },
         { k: 'goal', label: 'Maqsad', type: 'select', options: Object.values(GOALS).map(g => g[0]), value: (GOALS[S.profile.goal] || GOALS.ushlash)[0] },
@@ -847,7 +911,7 @@ const A = {
       onSave(v) {
         S.name = v.name.trim() || S.name; S.city = v.city;
         S.profile = { w: num(v.w) || S.profile.w, h: num(v.h) || S.profile.h, age: num(v.age) || S.profile.age, goal: Object.keys(GOALS).find(k => GOALS[k][0] === v.goal) || 'ushlash' };
-        S.budget = Math.max(0, num(v.budget)); S.zikrGoal = Math.max(1, num(v.zikrGoal));
+        S.budget = Math.max(0, num(v.budget)); S.zikrGoal = Math.max(1, num(v.zikrGoal)); S.stepGoal = Math.max(100, num(v.stepGoal) || 10000);
         PRAYERS.filter(p => !p.info).forEach(p => S.offsets[p.k] = num(v['o_' + p.k]));
       }
     });
@@ -959,10 +1023,14 @@ function removeFood(k, id) {
   commit();
 }
 // Pastda 5 soniya turadigan xabar, "Bekor qilish" tugmasi bilan
+const toastHTML = () => U.toast ? `<div id="toast" role="status" class="row" style="position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 84px);z-index:12;background:var(--ink);color:#fff;border-radius:16px;padding:6px 6px 6px 16px;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)">
+      <span style="flex:1;font-size:14px;font-weight:600;min-width:0">${esc(U.toast.text)}</span>
+      ${U.toast.undo ? `<button class="plain" data-a="undo" style="color:#7FD1B0;font-size:14px;font-weight:800;padding:0 12px;min-height:40px">Bekor qilish</button>` : ''}</div>` : '';
 let toastTimer = null;
 function toast(text, undo) {
   clearTimeout(toastTimer);
   U.toast = { text, undo };
+  if (U.sheet) { const old = document.getElementById('toast'); if (old) old.remove(); document.getElementById('app').insertAdjacentHTML('beforeend', toastHTML()); }
   toastTimer = setTimeout(() => { U.toast = null; const el = document.getElementById('toast'); if (el) el.remove(); }, 5000);
 }
 function foodSheet(id) {
@@ -1052,11 +1120,12 @@ document.addEventListener('input', e => {
 });
 // Vaqt o'tishi bilan (namozgacha qolgan vaqt, yangi kun) ekranni yangilab turadi
 setInterval(() => { fetchTimes(); if (!U.sheet && (U.tab === 'today' || U.tab === 'namoz') && document.activeElement.tagName !== 'INPUT') render(); }, 30000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { fetchTimes(); if (!U.sheet) render(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { fetchTimes(); fetchSteps(); if (!U.sheet) render(); } });
 window.addEventListener('online', fetchTimes);
 
 render();
 fetchTimes();
+fetchSteps();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
