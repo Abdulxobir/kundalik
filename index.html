@@ -190,7 +190,7 @@ function load() {
 }
 let S = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-const U = { tab: 'today', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false, stab: 'gym', foodEdit: false };
+const U = { tab: 'today', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false, stab: 'gym', foodEdit: false, ftab: 'day', rper: 'm', rmet: 'p', rsel: null };
 
 /* ---------- Namoz vaqtlari (astronomik hisob, Hanafiy asr) ---------- */
 function prayerTimes(date, lat, lng) {
@@ -508,12 +508,15 @@ function vZikr() {
 }
 
 function vSport() {
-  return `<div class="seg"><button class="${U.stab === 'gym' ? 'on' : ''}" data-a="stab" data-k="gym">Mashqlar</button><button class="${U.stab === 'food' ? 'on' : ''}" data-a="stab" data-k="food">Ovqatlanish</button></div>` + (U.stab === 'food' ? vFood() : vGym());
+  return `<div class="seg"><button class="${U.stab === 'gym' ? 'on' : ''}" data-a="stab" data-k="gym">Mashqlar</button><button class="${U.stab === 'food' ? 'on' : ''}" data-a="stab" data-k="food">Ovqatlanish</button></div>` + (U.stab === 'food' ? (U.ftab === 'report' ? vReport() : vFood()) : vGym());
 }
 function vFood() {
   const f = foodStats(), left = f.t.kcal - f.kcal;
   return `
-  <div class="col" style="gap:4px"><div class="eyebrow">Bugun · ${new Date().getDate()}-${MONTHS[new Date().getMonth()]}</div><div class="h1">Ovqatlanish</div></div>
+  <div class="between row" style="align-items:flex-end">
+    <div class="col" style="gap:4px"><div class="eyebrow">Bugun · ${new Date().getDate()}-${MONTHS[new Date().getMonth()]}</div><div class="h1">Ovqatlanish</div></div>
+    <button class="chip" data-a="rTab" data-k="report" style="height:40px;border-radius:20px">Hisobot ${svg(I.fwd, { s: 14, w: 2.4 })}</button>
+  </div>
   <div class="col" style="background:var(--ink);color:#fff;border-radius:24px;padding:18px 20px;gap:12px">
     <div class="between row" style="align-items:baseline"><div style="font-size:13px;font-weight:600;opacity:.8">Kaloriya</div><div class="num" style="font-size:13px;opacity:.85">me'yor ${f.t.kcal} kkal</div></div>
     <div class="row" style="align-items:baseline;gap:8px"><div class="num" style="font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1">${f.kcal}</div><div style="font-size:14px;opacity:.8">${left >= 0 ? 'kkal · yana ' + left + ' qoldi' : 'kkal · ' + (-left) + ' oshdi'}</div></div>
@@ -536,6 +539,77 @@ function vFood() {
     <button class="btn" data-a="fAdd">+ Qo'lda kiritish</button>
   </div>
   <div class="sm" style="text-align:center;line-height:1.5;padding:0 8px">Me'yor vazn, bo'y, yosh va maqsadga qarab hisoblanadi — Sozlamalarda (Bugun ekrani, ⚙) o'zgartiring. Taomlardagi raqamlar taxminiy; gramm — tayyor (pishgan) holatdagi og'irlik.</div>`;
+}
+/* ---------- Ovqatlanish hisoboti ---------- */
+const METRICS = { kcal: ['Kaloriya', 'kkal', 'kcal'], p: ['Oqsil', 'g', 'prot'], c: ['Uglevod', 'g', 'carb'], f: ["Yog'", 'g', 'fat'] };
+const PERIODS = [['w', '7 kun'], ['30', '30 kun'], ['m', 'Shu oy'], ['pm', "O'tgan oy"]];
+function periodDays(per) {
+  const n = new Date(); let end = new Date(n.getFullYear(), n.getMonth(), n.getDate()), start;
+  if (per === 'w' || per === '30') { start = new Date(end); start.setDate(start.getDate() - (per === 'w' ? 6 : 29)); }
+  else if (per === 'm') start = new Date(n.getFullYear(), n.getMonth(), 1);
+  else { start = new Date(n.getFullYear(), n.getMonth() - 1, 1); end = new Date(n.getFullYear(), n.getMonth(), 0); }
+  const out = [];
+  for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) out.push(dkey(d));
+  return out;
+}
+function dayTot(k) {
+  const l = S.food[k] || [], t = key => l.reduce((a, x) => a + (x[key] || 0), 0);
+  return { k, n: l.length, kcal: t('kcal'), p: t('p'), c: t('c'), f: t('f') };
+}
+const shortDate = k => { const a = k.split('-'); return +a[2] + '-' + MONTHS[+a[1] - 1].slice(0, 3); };
+function vReport() {
+  const t = targets(), days = periodDays(U.rper), tot = days.map(dayTot), logged = tot.filter(x => x.n), L = logged.length;
+  const head = `
+  <div class="between row" style="align-items:flex-end">
+    <div class="col" style="gap:4px"><div class="eyebrow">${shortDate(days[0])} – ${shortDate(days[days.length - 1])}</div><div class="h1">Hisobot</div></div>
+    <button class="chip" data-a="rTab" data-k="day" style="height:40px;border-radius:20px">${svg(I.back, { s: 14, w: 2.4 })} Bugun</button>
+  </div>
+  <div class="chips">${PERIODS.map(([k, label]) => `<button class="chip${U.rper === k ? ' on' : ''}" data-a="rPer" data-k="${k}">${label}</button>`).join('')}</div>`;
+  if (!L) return head + `<div class="card empty">Bu davrda hali ovqat yozilmagan.<br>Ovqatlanish bo'limida kunlik taomlaringizni qo'shib boring — hisobot shu yerda chiqadi.</div>`;
+
+  const rows = Object.keys(METRICS).map(key => {
+    const m = METRICS[key], sum = logged.reduce((a, x) => a + x[key], 0), goal = t[m[2]];
+    return { key, m, sum, need: goal * L, avg: Math.round(sum / L), goal };
+  });
+  const protOk = logged.filter(x => x.p >= t.prot).length, kcalOver = logged.filter(x => x.kcal > t.kcal * 1.1).length;
+  const M = METRICS[U.rmet], goal = t[M[2]], vals = tot.map(x => x[U.rmet]), max = Math.max(goal, ...vals) * 1.12 || 1;
+  if (!U.rsel || !days.includes(U.rsel)) U.rsel = logged[logged.length - 1].k;
+  const sel = tot.find(x => x.k === U.rsel);
+  return head + `
+  <div class="sm" style="line-height:1.5">${days.length} kundan <b style="color:var(--ink)">${L} kun</b> yozilgan. Hisob faqat yozilgan kunlar bo'yicha — yozilmagan kunlar o'rtachaga kirmaydi.</div>
+  <div class="card col" style="border-radius:22px;padding:8px 16px 4px">
+    <div style="display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;column-gap:8px;font-size:12px;font-weight:600;color:var(--mute);padding:6px 0;border-bottom:1px solid var(--line)">
+      <span></span><span style="text-align:right">Yedim</span><span style="text-align:right">Kerak edi</span><span style="text-align:right">Kuniga (%)</span></div>
+    ${rows.map(r => `<div class="num" style="display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;column-gap:8px;align-items:baseline;font-size:14px;padding:9px 0;border-bottom:1px solid #EEF0EC">
+      <span style="font-weight:700">${r.m[0]}<span class="sm" style="font-weight:600"> ${r.m[1]}</span></span>
+      <span style="text-align:right;font-weight:800">${money(r.sum)}</span><span style="text-align:right;color:var(--mute)">${money(r.need)}</span>
+      <span style="text-align:right"><b>${money(r.avg)}</b><br><span class="sm">${r.goal ? Math.round(r.avg / r.goal * 100) : 0}%</span></span></div>`).join('')}
+    <div class="sm" style="padding:8px 0;line-height:1.5">Kunlik me'yor: ${t.kcal} kkal · oqsil ${t.prot} g · uglevod ${t.carb} g · yog' ${t.fat} g</div>
+  </div>
+  <div class="grid2">
+    <div class="card col" style="gap:4px;border-radius:18px"><span class="lbl">Oqsil me'yoriga yetgan kunlar</span><span class="num" style="font-size:22px;font-weight:800">${protOk} <span class="sm">/ ${L}</span></span></div>
+    <div class="card col" style="gap:4px;border-radius:18px"><span class="lbl">Kaloriya 10% dan oshgan kunlar</span><span class="num" style="font-size:22px;font-weight:800">${kcalOver} <span class="sm">/ ${L}</span></span></div>
+  </div>
+  <div class="card col" style="border-radius:22px;gap:10px">
+    <div class="chips">${Object.keys(METRICS).map(k => `<button class="chip acc${U.rmet === k ? ' on' : ''}" data-a="rMet" data-k="${k}" style="height:32px;padding:0 12px">${METRICS[k][0]}</button>`).join('')}</div>
+    <div class="col" style="gap:2px"><div class="num" style="font-size:15px;font-weight:800">${shortDate(sel.k)}: ${sel.n ? money(sel[U.rmet]) + ' ' + M[1] : "yozilmagan"}</div>
+      <div class="sm">${sel.n ? pct(sel[U.rmet], goal) + "% me'yor · " : ''}kesik chiziq — kunlik me'yor (${money(goal)} ${M[1]})</div></div>
+    <div style="position:relative;height:150px">
+      <div style="position:absolute;left:0;right:0;bottom:${(goal / max * 100).toFixed(1)}%;border-top:1.5px dashed #8A938E;pointer-events:none;z-index:1"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:flex-end;gap:2px">
+        ${tot.map(x => `<button class="plain" data-a="rSel" data-k="${x.k}" aria-label="${shortDate(x.k)}: ${x.n ? x[U.rmet] + ' ' + M[1] : 'yozilmagan'}" title="${shortDate(x.k)}: ${x.n ? x[U.rmet] + ' ' + M[1] : 'yozilmagan'}" style="flex:1;min-width:0;height:100%;display:flex;align-items:flex-end">
+          <span style="display:block;width:100%;height:${x.n ? Math.max(1.5, x[U.rmet] / max * 100).toFixed(1) : 0}%;background:${x.k === U.rsel ? '#0A2F24' : 'var(--accent)'};border-radius:${days.length > 14 ? 2 : 4}px ${days.length > 14 ? 2 : 4}px 0 0;${x.n ? '' : 'border-bottom:2px solid var(--line)'}"></span></button>`).join('')}
+      </div>
+    </div>
+    <div class="between sm num" style="margin-top:-4px"><span>${shortDate(days[0])}</span><span>${shortDate(days[Math.floor(days.length / 2)])}</span><span>${shortDate(days[days.length - 1])}</span></div>
+  </div>
+  <div class="lbl">Kunlar</div>
+  <div class="card col" style="border-radius:22px;padding:4px 16px">
+    ${logged.slice().reverse().map((x, i, a) => `<button class="plain between row" data-a="rDay" data-k="${x.k}" style="gap:12px;padding:11px 0;width:100%;${i < a.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+      <span class="col" style="flex:1;gap:2px;min-width:0"><span style="font-size:15px;font-weight:700">${WEEKDAYS[new Date(x.k + 'T12:00').getDay()]}, ${shortDate(x.k)}</span>
+      <span class="sm num">oqsil ${x.p} g · uglevod ${x.c} g · yog' ${x.f} g</span></span>
+      <span class="num" style="font-size:15px;font-weight:800;white-space:nowrap">${money(x.kcal)} kkal</span></button>`).join('')}
+  </div>`;
 }
 function vGym() {
   const st = sportStats(U.sportDay), day = st.day;
@@ -690,6 +764,19 @@ const A = {
   go(d) { U.tab = d.tab; U.remEdit = false; render(); },
   goFood() { U.tab = 'sport'; U.stab = 'food'; render(); },
   stab(d) { U.stab = d.k; U.foodEdit = false; render(); },
+  rTab(d) { U.ftab = d.k; render(); },
+  rPer(d) { U.rper = d.k; U.rsel = null; render(); },
+  rMet(d) { U.rmet = d.k; render(); },
+  rSel(d) { U.rsel = d.k; render(); },
+  rDay(d) {
+    const l = S.food[d.k] || [], x = dayTot(d.k);
+    openSheet({
+      title: WEEKDAYS[new Date(d.k + 'T12:00').getDay()] + ', ' + shortDate(d.k), fields: [], saveLabel: 'Yopish', onSave() {},
+      body: `<div class="card col" style="border-radius:18px;padding:4px 14px">${l.map((e, i) => `<div class="col" style="gap:2px;padding:10px 0;${i < l.length - 1 ? 'border-bottom:1px solid #EEF0EC' : ''}">
+          <span style="font-size:15px;font-weight:700;color:var(--ink)">${esc(e.name)}</span><span class="sm num">${macro(e)}</span></div>`).join('')}</div>
+        <div class="num" style="font-size:15px;font-weight:800;color:var(--ink)">Jami: ${money(x.kcal)} kkal · oqsil ${x.p} g · uglevod ${x.c} g · yog' ${x.f} g</div>`
+    });
+  },
   foodEditToggle() { U.foodEdit = !U.foodEdit; render(); },
   fQuick(d) {
     const x = S.foods.find(e => e.id === d.id); if (!x) return;
