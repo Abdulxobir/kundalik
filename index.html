@@ -131,7 +131,7 @@ const DEFAULTS = {
   offsets: { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
   prayers: {},
   zikr: { date: '', sel: 0, count: 0, rounds: 0, total: 0 },
-  v: 6,
+  v: 7,
   plan: [
     { tag: 'Dam', title: 'Dam olish', ex: [] },
     { tag: "Ko'krak", title: "Ko'krak + biceps", ex: [['Shtanga jim (bench press)', '4 × 8', 4], ['Qiya skameykada gantel jim', '3 × 10', 3], ['Krossover', '3 × 12', 3], ['Biceps shtanga', '3 × 10', 3], ["Bolg'a (hammer curl)", '3 × 12', 3]] },
@@ -171,6 +171,14 @@ const DEFAULTS = {
   remDone: {}
 };
 
+// Izoh turkum yoki tugma nomi bilan boshlansa, o'sha turkumni topadi ("Avans ustaga" → Avans)
+function guessCat(title, presets) {
+  const t = String(title || '').trim().toLowerCase(), hit = n => { n = n.toLowerCase(); return t === n || t.startsWith(n + ' '); };
+  const k = Object.keys(CATS).find(k => k !== 'boshqa' && !CATS[k].old && hit(CATS[k].label));
+  if (k) return k;
+  const p = (presets || []).find(x => x.cat !== 'boshqa' && hit(x.title));
+  return p ? p.cat : null;
+}
 function load() {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
@@ -201,7 +209,9 @@ function load() {
     out.expPresets = (s.expPresets || []).map(x => x.amounts ? x : { id: x.id, title: x.title, cat: x.cat, amounts: [x.amount] });
     out.expPresets = DEFAULTS.expPresets.filter(d => !out.expPresets.some(x => x.id === d.id)).map(d => JSON.parse(JSON.stringify(d))).concat(out.expPresets);
   }
-  out.v = 6;
+  // v7: "Boshqa" ga tushib qolgan, izohi turkum nomi bilan boshlanadigan xarajatlar (masalan "Avans ustaga") o'z turkumiga o'tadi
+  if ((s.v || 1) < 7) out.expenses.forEach(e => { if (e.cat === 'boshqa') { const g = guessCat(e.title, out.expPresets); if (g) e.cat = g; } });
+  out.v = 7;
   return out;
 }
 let S = load();
@@ -1256,7 +1266,9 @@ function expSheet(id, cat, title0) {
       ...(x ? [] : [{ k: 'pre', label: 'Bir bosishda yozish tugmasi qilib saqlansinmi?', type: 'select', options: ["Yo'q", 'Ha'], value: "Yo'q" }])],
     onSave(v) {
       const amount = num(v.amount); if (amount <= 0) return false;
-      const cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa', title = v.title.trim() || CATS[cat].label;
+      let cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa';
+      if (cat === 'boshqa') cat = guessCat(v.title, S.expPresets) || cat;
+      const title = v.title.trim() || CATS[cat].label;
       if (x) Object.assign(x, { amount, title, cat }); else S.expenses.push({ id: uid(), amount, title, cat, ts: Date.now() });
       if (!x && v.pre === 'Ha') S.expPresets.push({ id: uid(), amounts: [amount], title, cat });
     },
