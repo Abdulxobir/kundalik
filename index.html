@@ -121,7 +121,6 @@ const CATS = {
   sport: { label: 'Sport', ab: 'Sp', bg: '#EEE3EA', fg: '#5B2E48' },
   kitob: { label: 'Kitob', ab: 'Kt', bg: '#F6E7CF', fg: '#9A5A0C' },
   transport: { label: 'Transport', ab: 'Tr', bg: '#DDE5F0', fg: '#1F3A5F', old: true },
-  avans: { label: 'Avans', ab: 'Av', bg: '#DDEFF0', fg: '#1C5E66' },
   boshqa: { label: 'Boshqa', ab: 'Bq', bg: '#E9EBE7', fg: '#3F4A44' }
 };
 const TAGS = { ISH: '#0E5E46', "G'OYA": '#9A5A0C', KITOB: '#1F3A5F', SHAXSIY: '#5B2E48' };
@@ -131,7 +130,7 @@ const DEFAULTS = {
   offsets: { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
   prayers: {},
   zikr: { date: '', sel: 0, count: 0, rounds: 0, total: 0 },
-  v: 7,
+  v: 8,
   plan: [
     { tag: 'Dam', title: 'Dam olish', ex: [] },
     { tag: "Ko'krak", title: "Ko'krak + biceps", ex: [['Shtanga jim (bench press)', '4 × 8', 4], ['Qiya skameykada gantel jim', '3 × 10', 3], ['Krossover', '3 × 12', 3], ['Biceps shtanga', '3 × 10', 3], ["Bolg'a (hammer curl)", '3 × 12', 3]] },
@@ -158,6 +157,7 @@ const DEFAULTS = {
   steps: {}, stepSrc: {}, stepGoal: 10000, stepTopic: '',
   sportDone: {},
   expenses: [],
+  income: [],
   expPresets: [
     { id: 'u1', title: 'Taksi', cat: 'taksi', amounts: [10000, 12000, 14000] }, { id: 'u2', title: 'Shaxsiy odat', cat: 'odat', amounts: [25000] },
     { id: 'u3', title: 'Obed', cat: 'obed', amounts: [30000, 50000, 70000] }, { id: 'u4', title: 'CS GO', cat: 'cs', amounts: [50000, 70000, 90000] },
@@ -172,6 +172,7 @@ const DEFAULTS = {
 };
 
 // Izoh turkum yoki tugma nomi bilan boshlansa, o'sha turkumni topadi ("Avans ustaga" → Avans)
+const AVANS = /^\s*avans(\s|$)/i;
 function guessCat(title, presets) {
   const t = String(title || '').trim().toLowerCase(), hit = n => { n = n.toLowerCase(); return t === n || t.startsWith(n + ' '); };
   const k = Object.keys(CATS).find(k => k !== 'boshqa' && !CATS[k].old && hit(CATS[k].label));
@@ -211,7 +212,14 @@ function load() {
   }
   // v7: "Boshqa" ga tushib qolgan, izohi turkum nomi bilan boshlanadigan xarajatlar (masalan "Avans ustaga") o'z turkumiga o'tadi
   if ((s.v || 1) < 7) out.expenses.forEach(e => { if (e.cat === 'boshqa') { const g = guessCat(e.title, out.expPresets); if (g) e.cat = g; } });
-  out.v = 7;
+  // v8: avans endi xarajat emas, alohida kirim
+  if ((s.v || 1) < 8) {
+    const isAv = e => e.cat === 'avans' || (e.cat === 'boshqa' && AVANS.test(e.title));
+    out.income = (out.income || []).concat(out.expenses.filter(isAv).map(e => ({ id: e.id, amount: e.amount, title: e.title, ts: e.ts })));
+    out.expenses = out.expenses.filter(e => !isAv(e));
+    out.expPresets = out.expPresets.filter(x => x.cat !== 'avans');
+  }
+  out.v = 8;
   return out;
 }
 let S = load();
@@ -716,6 +724,16 @@ function vPul() {
     <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(spent, S.budget)}%;background:#E9B45A;border-radius:4px"></div></div>
     <div class="between num" style="font-size:12px;opacity:.85"><div>Byudjet: ${money(S.budget)}</div><div>${S.budget - spent >= 0 ? 'Qoldi: ' + money(S.budget - spent) : 'Oshdi: ' + money(spent - S.budget)}</div></div>
   </div>
+  ${(inc => { const got = sum(inc), left = got - spent; return `<div class="col" style="background:var(--accent);color:#fff;border-radius:24px;padding:18px 20px;gap:12px">
+    <div class="between row"><div style="font-size:13px;font-weight:600;opacity:.85">Shu oy olingan avans</div>
+      <button data-a="incAdd" style="height:36px;padding:0 14px;border-radius:18px;border:none;background:#fff;color:var(--accent);font-size:13px;font-weight:800">+ Avans</button></div>
+    <div class="row" style="align-items:baseline;gap:8px"><div class="num" style="font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1">${money(got)}</div><div style="font-size:14px;opacity:.85">so'm</div></div>
+    ${got ? `<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.22);overflow:hidden"><div style="height:8px;width:${pct(spent, got)}%;background:#fff;border-radius:4px"></div></div>
+    <div class="between num" style="font-size:12px;opacity:.9"><div>Sarflandi: ${money(spent)}</div><div>${left >= 0 ? 'Qoldi: ' + money(left) : 'Oshdi: ' + money(-left)}</div></div>` : ''}
+    ${inc.map(x => { const d = new Date(x.ts); return `<div class="row" style="gap:8px;border-top:1px solid rgba(255,255,255,.2);padding-top:8px">
+      <button class="plain col" data-a="incEdit" data-id="${x.id}" style="flex:1;min-width:0;gap:1px;color:#fff;min-height:40px;justify-content:center"><span style="font-size:14px;font-weight:700">+${money(x.amount)} so'm</span><span style="font-size:12px;opacity:.85">${esc(x.title)} · ${d.getDate()}-${MONTHS[d.getMonth()].slice(0, 3)}</span></button>
+      <button class="round" data-a="incDel" data-id="${x.id}" aria-label="Avansni o'chirish" style="width:40px;height:40px;border:none;background:rgba(255,255,255,.16);color:#fff">${svg(I.trash, { s: 17, w: 2 })}</button></div>`; }).join('')}
+  </div>`; })(incRange(pulRange('m', 0)))}
   <div class="between row"><div class="lbl">Asosiy xarajatlar · summani bosing</div><button class="plain" data-a="presetEditToggle" style="font-size:12px;font-weight:700;color:var(--accent);min-height:32px">${U.presetEdit ? 'Tayyor' : 'Tahrirlash'}</button></div>
   <div class="col" style="gap:8px">
     ${S.expPresets.map(x => { const c = CATS[x.cat] || CATS.boshqa, t = sum(ms.filter(e => e.title === x.title)); return `<div class="card col" style="border-radius:18px;padding:12px 14px;gap:10px">
@@ -764,6 +782,7 @@ function rangeLabel(r) {
   if (r.p === 'm') return `${cap(MONTHS[s.getMonth()])} ${s.getFullYear()}`;
   return `${s.getFullYear()}-yil`;
 }
+const incRange = r => (S.income || []).filter(x => x.ts >= r.s.getTime() && x.ts < r.e.getTime()).sort((a, b) => b.ts - a.ts);
 const inRange = r => S.expenses.filter(x => x.ts >= r.s.getTime() && x.ts < r.e.getTime()).sort((a, b) => b.ts - a.ts);
 // Grafik ustunlari: hafta — 7 kun, oy — har kun, yil — 12 oy
 function buckets(r) {
@@ -803,6 +822,7 @@ function vPulReport() {
     ${budget ? `<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden"><div style="height:8px;width:${pct(total, budget)}%;background:#E9B45A;border-radius:4px"></div></div>
     <div class="between num" style="font-size:12px;opacity:.85"><div>Byudjet: ${money(budget)}</div><div>${budget - total >= 0 ? 'Qoldi: ' + money(budget - total) : 'Oshdi: ' + money(total - budget)}</div></div>` : ''}
     <div class="between num" style="font-size:13px;opacity:.9;gap:12px">${U.rp !== 'd' ? `<span>Kuniga o'rtacha: <b>${money(total / days)}</b></span>` : '<span></span>'}<span>O'tgan ${word}: ${money(prev)}</span></div>
+    ${sum(incRange(r)) ? `<div class="between num" style="font-size:13px;border-top:1px solid rgba(255,255,255,.18);padding-top:10px"><span>Olingan avans</span><b>+${money(sum(incRange(r)))} so'm</b></div>` : ''}
   </div>
   ${items.length ? `
   ${bs.length ? `<div class="card col" style="border-radius:22px;gap:10px">
@@ -1110,6 +1130,9 @@ const A = {
   expQuick(d) { expSheet(null, d.k); },
   expEdit(d) { expSheet(d.id); },
   expDel(d) { removeExpense(d.id); },
+  incAdd() { incSheet(null); },
+  incEdit(d) { incSheet(d.id); },
+  incDel(d) { removeIncome(d.id); },
 
   qtab(d) { U.qtab = d.k; render(); },
   noteAdd() { U.qtab = 'notes'; noteSheet(null); },
@@ -1174,6 +1197,25 @@ function prodUpdate(search) {
 }
 // Tez qo'shishdan kelgan yozuvmi (eski yozuvlarda tpl yo'q — nom va kaloriya bo'yicha)
 const sameTpl = (e, x) => e.tpl ? e.tpl === x.id : e.name === x.name && e.kcal === x.kcal;
+function removeIncome(id) {
+  const i = S.income.findIndex(e => e.id === id); if (i < 0) return;
+  const [e] = S.income.splice(i, 1);
+  toast(`Avans ${money(e.amount)} so'm o'chirildi`, () => { S.income.splice(Math.min(i, S.income.length), 0, e); });
+  commit();
+}
+function incSheet(id) {
+  const x = id ? S.income.find(e => e.id === id) : null;
+  openSheet({
+    title: x ? 'Avansni tahrirlash' : "Avans qo'shish", saveLabel: x ? 'Saqlash' : "Qo'shish",
+    fields: [{ k: 'amount', label: "Summa (so'm)", type: 'number', value: x ? x.amount : '', ph: '0' }, { k: 'title', label: 'Izoh (ixtiyoriy)', value: x ? x.title : '', ph: 'Masalan: Ishxonadan' }],
+    onSave(v) {
+      const amount = num(v.amount); if (amount <= 0) return false;
+      const title = v.title.trim() || 'Avans';
+      if (x) Object.assign(x, { amount, title }); else S.income.push({ id: uid(), amount, title, ts: Date.now() });
+    },
+    onDelete: x ? () => removeIncome(id) : null
+  });
+}
 function removeExpense(id) {
   const i = S.expenses.findIndex(e => e.id === id); if (i < 0) return;
   const [e] = S.expenses.splice(i, 1);
@@ -1267,6 +1309,7 @@ function expSheet(id, cat, title0) {
     onSave(v) {
       const amount = num(v.amount); if (amount <= 0) return false;
       let cat = Object.keys(CATS).find(k => CATS[k].label === v.cat) || 'boshqa';
+      if (!x && cat === 'boshqa' && AVANS.test(v.title)) { S.income.push({ id: uid(), amount, title: v.title.trim(), ts: Date.now() }); return; }
       if (cat === 'boshqa') cat = guessCat(v.title, S.expPresets) || cat;
       const title = v.title.trim() || CATS[cat].label;
       if (x) Object.assign(x, { amount, title, cat }); else S.expenses.push({ id: uid(), amount, title, cat, ts: Date.now() });
@@ -1323,6 +1366,12 @@ async function exportXLSX(r) {
   const rows3 = [['Sana', "Summa (so'm)"], ...Object.keys(byDay).sort().map(k => [new Date(k + 'T00:00'), byDay[k]])];
   const ws3 = X.utils.aoa_to_sheet(rows3, { cellDates: true, dateNF: 'dd"."mm"."yyyy' }); ws3['!cols'] = [{ wch: 12 }, { wch: 14 }]; money0(ws3, 1, 1, rows3.length - 1);
   X.utils.book_append_sheet(wb, ws3, 'Kunlar');
+  const incs = r ? incRange(r) : (S.income || []).slice().sort((a, b) => b.ts - a.ts);
+  if (incs.length) {
+    const rows4 = [['Sana', 'Izoh', "Summa (so'm)"], ...incs.map(x => { const d = new Date(x.ts); return [new Date(d.getFullYear(), d.getMonth(), d.getDate()), x.title, x.amount]; }), ['', 'Jami', sum(incs)]];
+    const ws4 = X.utils.aoa_to_sheet(rows4, { cellDates: true, dateNF: 'dd"."mm"."yyyy' }); ws4['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 14 }]; money0(ws4, 2, 1, rows4.length - 1);
+    X.utils.book_append_sheet(wb, ws4, 'Avans');
+  }
   const name = 'kundalik-xarajatlar-' + (r ? dkey(r.s).slice(0, { y: 4, m: 7 }[r.p] || 10) + (r.p === 'w' ? '-hafta' : '') : 'hammasi') + '.xlsx';
   const file = new File([X.write(wb, { bookType: 'xlsx', type: 'array' })], name, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   // Telefonda — ulashish oynasi (Excel, Telegram, Fayllar), kompyuterda — yuklab olish
