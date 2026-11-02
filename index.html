@@ -226,7 +226,7 @@ function load() {
 }
 let S = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-const U = { tab: 'today', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false, stab: 'gym', foodEdit: false, ftab: 'day', rper: 'm', rmet: 'p', rsel: null, ptab: 'main', rp: 'm', rpOff: 0, psel: null, presetEdit: false, rcat: 'all', rfrom: '', rto: '' };
+const U = { tab: 'pul', sportDay: (new Date().getDay() + 6) % 7, cat: 'all', qtab: 'notes', q: '', sheet: null, rest: null, remEdit: false, stab: 'gym', foodEdit: false, ftab: 'day', rper: 'm', rmet: 'p', rsel: null, ptab: 'main', rp: 'm', rpOff: 0, psel: null, presetEdit: false, rcat: 'all', rfrom: '', rto: '' };
 
 /* ---------- Namoz vaqtlari (astronomik hisob, Hanafiy asr) ---------- */
 function prayerTimes(date, lat, lng) {
@@ -487,13 +487,7 @@ function vToday() {
       <div class="bar" style="margin-top:auto"><i style="width:${pct(z.total, S.zikrGoal)}%;background:var(--accent)"></i></div>
     </button>
   </div>
-  ${(st => `<button class="card col" data-a="steps" style="gap:10px">
-    <div class="between row"><div class="row" style="gap:10px"><span style="width:36px;height:36px;border-radius:12px;background:#DDE5F0;display:flex;align-items:center;justify-content:center">${svg(I.foot, { s: 20, c: '#1F3A5F', w: 1.8 })}</span>
-      <span class="col" style="gap:2px"><span class="lbl">Qadamlar · bugun</span><span class="num" style="font-size:20px;font-weight:800">${money(st.n)} <span style="font-size:13px;font-weight:600;color:var(--mute)">/ ${money(S.stepGoal)}</span></span></span></div>
-      <span class="sm" style="text-align:right">${st.src}</span></div>
-    <div class="bar"><i style="width:${pct(st.n, S.stepGoal)}%;background:#1F3A5F"></i></div>
-    <div class="sm num">≈ ${st.km} km · ≈ ${st.kcal} kkal sarflandi</div>
-  </button>`)(stepInfo(today()))}
+  ${stepCard()}
   ${(f => `<button class="card col" data-a="goFood" style="gap:10px">
     <div class="between row"><div class="lbl">Ovqat · bugun</div><div class="sm num">${f.kcal} / ${f.t.kcal} kkal</div></div>
     <div class="bar"><i style="width:${pct(f.kcal, f.t.kcal)}%;background:#9A5A0C"></i></div>
@@ -579,8 +573,15 @@ function vZikr() {
   </div>`;
 }
 
+const stepCard = () => (st => `<button class="card col" data-a="steps" style="gap:10px">
+    <div class="between row"><div class="row" style="gap:10px"><span style="width:36px;height:36px;border-radius:12px;background:#DDE5F0;display:flex;align-items:center;justify-content:center">${svg(I.foot, { s: 20, c: '#1F3A5F', w: 1.8 })}</span>
+      <span class="col" style="gap:2px"><span class="lbl">Qadamlar · bugun</span><span class="num" style="font-size:20px;font-weight:800">${money(st.n)} <span style="font-size:13px;font-weight:600;color:var(--mute)">/ ${money(S.stepGoal)}</span></span></span></div>
+      <span class="sm" style="text-align:right">${st.src}</span></div>
+    <div class="bar"><i style="width:${pct(st.n, S.stepGoal)}%;background:#1F3A5F"></i></div>
+    <div class="sm num">≈ ${st.km} km · ≈ ${st.kcal} kkal sarflandi</div>
+  </button>`)(stepInfo(today()));
 function vSport() {
-  return `<div class="seg"><button class="${U.stab === 'gym' ? 'on' : ''}" data-a="stab" data-k="gym">Mashqlar</button><button class="${U.stab === 'food' ? 'on' : ''}" data-a="stab" data-k="food">Ovqatlanish</button></div>` + (U.stab === 'food' ? (U.ftab === 'report' ? vReport() : vFood()) : vGym());
+  return `<div class="seg"><button class="${U.stab === 'gym' ? 'on' : ''}" data-a="stab" data-k="gym">Mashqlar</button><button class="${U.stab === 'food' ? 'on' : ''}" data-a="stab" data-k="food">Ovqatlanish</button></div>` + (U.stab === 'food' ? (U.ftab === 'report' ? vReport() : vFood()) : stepCard() + vGym());
 }
 function vFood() {
   const f = foodStats(), left = f.t.kcal - f.kcal;
@@ -615,7 +616,7 @@ function vFood() {
     </div>`; }).join('')}
     <button class="btn" data-a="fAdd">+ Qo'lda kiritish</button>
   </div>
-  <div class="sm" style="text-align:center;line-height:1.5;padding:0 8px">Me'yor vazn, bo'y, yosh va maqsadga qarab hisoblanadi — Sozlamalarda (Bugun ekrani, ⚙) o'zgartiring. Taomlardagi raqamlar taxminiy; gramm — tayyor (pishgan) holatdagi og'irlik.</div>`;
+  <div class="sm" style="text-align:center;line-height:1.5;padding:0 8px">Me'yor vazn, bo'y, yosh va maqsadga qarab hisoblanadi — Sozlamalarda (Pul ekrani, ⚙) o'zgartiring. Taomlardagi raqamlar taxminiy; gramm — tayyor (pishgan) holatdagi og'irlik.</div>`;
 }
 /* ---------- Ovqatlanish hisoboti ---------- */
 const METRICS = { kcal: ['Kaloriya', 'kkal', 'kcal'], p: ['Oqsil', 'g', 'prot'], c: ['Uglevod', 'g', 'carb'], f: ["Yog'", 'g', 'fat'] };
@@ -718,7 +719,8 @@ function vPul() {
   return `
   <div class="between row" style="align-items:flex-end">
     <div class="col" style="gap:4px"><div class="eyebrow">${MONTHS[n.getMonth()]} ${n.getFullYear()}</div><div class="h1">Xarajatlar</div></div>
-    <button class="chip" data-a="ptab" data-k="report" style="height:40px;border-radius:20px">Hisobot ${svg(I.fwd, { s: 14, w: 2.4 })}</button>
+    <div class="row" style="gap:8px"><button class="chip" data-a="ptab" data-k="report" style="height:40px;border-radius:20px">Hisobot ${svg(I.fwd, { s: 14, w: 2.4 })}</button>
+      <button class="round" data-a="settings" aria-label="Sozlamalar" style="width:40px;height:40px">${svg(I.gear, { s: 19, w: 1.8 })}</button></div>
   </div>
   <div class="col" style="background:var(--ink);color:#fff;border-radius:24px;padding:18px 20px;gap:12px">
     <div style="font-size:13px;font-weight:600;opacity:.8">Shu oy sarflandi</div>
@@ -936,7 +938,7 @@ const num = v => { const n = parseInt(String(v).replace(/[^\d-]/g, ''), 10); ret
 
 /* ---------- Render ---------- */
 const VIEWS = { today: vToday, namoz: vNamoz, zikr: vZikr, sport: vSport, pul: () => U.ptab === 'report' ? vPulReport() : vPul(), qaydlar: vQaydlar };
-const NAV = [['today', 'Bugun', I.sun], ['namoz', 'Ibodat', I.moon], ['sport', 'Sport', I.gym], ['pul', 'Pul', I.card], ['qaydlar', 'Qaydlar', I.note]];
+const NAV = [['pul', 'Pul', I.card], ['namoz', 'Ibodat', I.moon], ['sport', 'Sport', I.gym]];
 let lastTab = null;
 function render() {
   const app = document.getElementById('app'), sc = app.querySelector('.scroll');
