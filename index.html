@@ -130,7 +130,7 @@ const DEFAULTS = {
   offsets: { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
   prayers: {},
   zikr: { date: '', sel: 0, count: 0, rounds: 0, total: 0 },
-  v: 8,
+  v: 9,
   plan: [
     { tag: 'Dam', title: 'Dam olish', ex: [] },
     { tag: "Ko'krak", title: "Ko'krak + biceps", ex: [['Shtanga jim (bench press)', '4 × 8', 4], ['Qiya skameykada gantel jim', '3 × 10', 3], ['Krossover', '3 × 12', 3], ['Biceps shtanga', '3 × 10', 3], ["Bolg'a (hammer curl)", '3 × 12', 3]] },
@@ -219,7 +219,9 @@ function load() {
     out.expenses = out.expenses.filter(e => !isAv(e));
     out.expPresets = out.expPresets.filter(x => x.cat !== 'avans');
   }
-  out.v = 8;
+  // v9: Asosiy xarajatlardan Avans tugmasi olib tashlanadi — avans endi faqat yashil kartadan qo'shiladi
+  if ((s.v || 1) < 9) out.expPresets = out.expPresets.filter(x => !AVANS.test(x.title));
+  out.v = 9;
   return out;
 }
 let S = load();
